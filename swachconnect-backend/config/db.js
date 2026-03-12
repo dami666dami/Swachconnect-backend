@@ -11,10 +11,7 @@ const connectDB = async () => {
       process.exit(1);
     }
 
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const conn = await mongoose.connect(process.env.MONGO_URI);
 
     console.log("✅ MongoDB Connected");
     console.log(`📂 Database Host: ${conn.connection.host}`);
@@ -37,11 +34,17 @@ mongoose.connection.on("connected", () => {
 });
 
 mongoose.connection.on("error", (err) => {
-  console.error("❌ MongoDB runtime error:", err);
+  console.error("❌ MongoDB runtime error:", err.message);
 });
 
 mongoose.connection.on("disconnected", () => {
   console.warn("⚠ MongoDB disconnected");
+});
+
+process.on("SIGINT", async () => {
+  await mongoose.connection.close();
+  console.log("📴 MongoDB connection closed due to app termination");
+  process.exit(0);
 });
 
 module.exports = connectDB;
