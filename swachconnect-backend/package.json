@@ -1,0 +1,38 @@
+{
+  "name": "swachconnect-backend",
+  "version": "1.0.0",
+  "description": "Backend API for SwachConnect waste reporting app",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "express",
+    "mongodb",
+    "waste-reporting",
+    "api",
+    "swachconnect"
+  ],
+  "author": "Dami Micheal",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.0.0",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^7.0.12"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

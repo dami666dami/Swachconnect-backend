@@ -1,0 +1,13 @@
+{
+  "name": "ai-bot-core",
+  "version": "1.0.0",
+  "description": "SwachConnect Advanced Local AI Bot",
+  "type": "module",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "readline-sync": "^1.4.10"
+  }
+}

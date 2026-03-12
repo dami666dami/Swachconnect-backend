@@ -1,0 +1,62 @@
+name: swach_connect
+description: Smart citizen waste reporting app
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  flutter_tts: ^3.8.5
+
+  share_plus: ^7.2.1
+
+  animated_text_kit: ^4.2.2
+
+  lottie: ^2.7.0
+
+  http: ^1.2.0
+
+  image_picker: ^1.0.7
+
+  geolocator: ^11.0.0
+
+  exif: ^3.1.4
+
+  url_launcher: ^6.2.5
+
+  carousel_slider: ^4.2.1
+
+  google_fonts: ^6.1.0
+
+  path_provider: ^2.1.2
+
+  shared_preferences: ^2.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_launcher_icons: ^0.13.1
+
+  # Recommended lints
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/icon/
+    - assets/slideshow/
+    - assets/animations/
+    - assets/ai/swach_ai.png
+
+flutter_icons:
+  android: true
+  ios: false
+  image_path: assets/icon/swach.png
+
+
