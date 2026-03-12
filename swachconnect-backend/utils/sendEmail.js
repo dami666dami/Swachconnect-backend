@@ -11,46 +11,38 @@ const sendEmail = async ({
   try {
 
     if (!to || !subject) {
-      console.error(" Missing email 'to' or 'subject'");
+      console.error("Missing email 'to' or 'subject'");
       return false;
     }
 
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.error(" EMAIL_USER or EMAIL_PASS is missing in .env");
+      console.error("EMAIL_USER or EMAIL_PASS is missing in environment variables");
       return false;
     }
 
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,
-      secure: false, 
-
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-
-      tls: {
-        rejectUnauthorized: false, 
-      },
     });
 
     await transporter.verify();
-    console.log(" Gmail transporter verified");
+    console.log("SMTP transporter verified");
 
     const mailOptions = {
       from: `"SwachConnect" <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-
+      to: to,
+      subject: subject,
       text:
         text ||
         (html
           ? "This is an official notification from SwachConnect."
           : "SwachConnect Notification"),
-
       html: html || undefined,
-
       attachments: Array.isArray(attachments) ? attachments : [],
     };
 
@@ -60,14 +52,15 @@ const sendEmail = async ({
 
     const info = await transporter.sendMail(mailOptions);
 
-    console.log(" Email sent successfully");
-    console.log(" To:", to);
-    console.log(" Message ID:", info.messageId);
+    console.log("Email sent successfully");
+    console.log("To:", to);
+    console.log("Message ID:", info.messageId);
 
     return true;
+
   } catch (error) {
-    console.error(" Email sending failed");
-    console.error(" Reason:", error.message);
+    console.error("Email sending failed");
+    console.error("Reason:", error.message);
     return false;
   }
 };
