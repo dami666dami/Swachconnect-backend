@@ -12,9 +12,17 @@ const authorityLevels = [
   "National Authorities",
 ];
 
+/* --------------------------------------------------
+   Deadline (currently 2 minutes for testing)
+---------------------------------------------------*/
+
 const getDeadlineByAuthority = () => {
   return new Date(Date.now() + 2 * 60 * 1000);
 };
+
+/* --------------------------------------------------
+   Distance calculation
+---------------------------------------------------*/
 
 const getDistanceInMeters = (lat1, lng1, lat2, lng2) => {
   const R = 6371e3;
@@ -32,10 +40,20 @@ const getDistanceInMeters = (lat1, lng1, lat2, lng2) => {
   return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
+/* --------------------------------------------------
+   Create Complaint
+---------------------------------------------------*/
+
 exports.createComplaint = async (req, res) => {
   try {
     const user = req.user;
     const { description, lat, lng, isAnonymous } = req.body;
+
+    if (!description || description.trim().length < 5) {
+      return res.status(400).json({
+        message: "Invalid complaint description",
+      });
+    }
 
     const anonymous =
       isAnonymous === true ||
@@ -43,23 +61,36 @@ exports.createComplaint = async (req, res) => {
       isAnonymous === 1 ||
       isAnonymous === "1";
 
-    if (!description || description.trim().length < 5) {
-      return res.status(400).json({ message: "Invalid complaint description" });
-    }
-
     const latitude =
-      lat !== undefined && lat !== "" && !isNaN(lat) ? Number(lat) : null;
+      lat !== undefined && lat !== "" && !isNaN(lat)
+        ? Number(lat)
+        : null;
+
     const longitude =
-      lng !== undefined && lng !== "" && !isNaN(lng) ? Number(lng) : null;
+      lng !== undefined && lng !== "" && !isNaN(lng)
+        ? Number(lng)
+        : null;
+
+    /* ---------------------------
+       Image Handling
+    ---------------------------*/
 
     const images = Array.isArray(req.files)
       ? req.files.map((f) => `/uploads/${f.filename}`)
       : [];
 
+    console.log("📸 Uploaded Images:", images);
+
+    /* ---------------------------
+       Duplicate detection
+    ---------------------------*/
+
     let duplicateWarning = null;
 
     if (latitude && longitude) {
-      const recentTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const recentTime = new Date(
+        Date.now() - 7 * 24 * 60 * 60 * 1000
+      );
 
       const recentComplaints = await Complaint.find({
         createdAt: { $gte: recentTime },
@@ -84,8 +115,19 @@ exports.createComplaint = async (req, res) => {
       }
     }
 
-    const emailActionToken = crypto.randomBytes(32).toString("hex");
-    const emailActionExpires = Date.now() + 2 * 60 * 60 * 1000;
+    /* ---------------------------
+       Email action token
+    ---------------------------*/
+
+    const emailActionToken =
+      crypto.randomBytes(32).toString("hex");
+
+    const emailActionExpires =
+      Date.now() + 2 * 60 * 60 * 1000;
+
+    /* ---------------------------
+       Create complaint
+    ---------------------------*/
 
     const complaint = await Complaint.create({
       userId: user._id,
@@ -93,7 +135,10 @@ exports.createComplaint = async (req, res) => {
       reporterEmail: user.email,
       description: description.trim(),
       images,
-      location: { lat: latitude, lng: longitude },
+      location: {
+        lat: latitude,
+        lng: longitude,
+      },
       isAnonymous: anonymous,
       status: "Pending",
       progress: 10,
@@ -107,28 +152,39 @@ exports.createComplaint = async (req, res) => {
       emailActionExpires,
     });
 
+    /* ---------------------------
+       Send confirmation email
+    ---------------------------*/
 
-    const emailHtml = anonymous
-      ? `
-        <h2> Complaint Registered</h2>
-        <p>Your <b>anonymous complaint</b> has been registered successfully.</p>
-        <p><b>Authority:</b> ${complaint.assignedAuthority}</p>
-        <p>Your identity is protected.</p>
-        <p>— SwachConnect Team</p>
-      `
-      : `
-        <h2> Complaint Registered</h2>
-        <p>Dear ${user.name},</p>
-        <p>Your complaint has been registered successfully.</p>
-        <p><b>Authority:</b> ${complaint.assignedAuthority}</p>
-        <p>— SwachConnect Team</p>
-      `;
+    try {
+      const emailHtml = anonymous
+        ? `
+          <h2>Complaint Registered</h2>
+          <p>Your <b>anonymous complaint</b> has been registered.</p>
+          <p><b>Authority:</b> ${complaint.assignedAuthority}</p>
+          <p>— SwachConnect Team</p>
+        `
+        : `
+          <h2>Complaint Registered</h2>
+          <p>Dear ${user.name},</p>
+          <p>Your complaint has been registered successfully.</p>
+          <p><b>Authority:</b> ${complaint.assignedAuthority}</p>
+          <p>— SwachConnect Team</p>
+        `;
 
-    sendEmail({
-      to: complaint.reporterEmail,
-      subject: "Complaint Registered – SwachConnect",
-      html: emailHtml,
-    });
+      await sendEmail({
+        to: complaint.reporterEmail,
+        subject: "Complaint Registered – SwachConnect",
+        html: emailHtml,
+      });
+
+      console.log("📧 Registration email sent");
+    } catch (emailError) {
+      console.error(
+        "⚠ Email sending failed:",
+        emailError.message
+      );
+    }
 
     res.status(201).json({
       success: true,
@@ -137,9 +193,15 @@ exports.createComplaint = async (req, res) => {
     });
   } catch (err) {
     console.error("CREATE COMPLAINT ERROR:", err);
-    res.status(500).json({ message: "Complaint submission failed" });
+    res.status(500).json({
+      message: "Complaint submission failed",
+    });
   }
 };
+
+/* --------------------------------------------------
+   Get user complaints
+---------------------------------------------------*/
 
 exports.getUserComplaints = async (req, res) => {
   try {
@@ -149,9 +211,15 @@ exports.getUserComplaints = async (req, res) => {
 
     res.status(200).json(complaints);
   } catch {
-    res.status(500).json({ message: "Failed to fetch complaints" });
+    res.status(500).json({
+      message: "Failed to fetch complaints",
+    });
   }
 };
+
+/* --------------------------------------------------
+   Get all complaints
+---------------------------------------------------*/
 
 exports.getAllComplaints = async (req, res) => {
   try {
@@ -161,9 +229,15 @@ exports.getAllComplaints = async (req, res) => {
 
     res.status(200).json(complaints);
   } catch {
-    res.status(500).json({ message: "Failed to fetch complaints" });
+    res.status(500).json({
+      message: "Failed to fetch complaints",
+    });
   }
 };
+
+/* --------------------------------------------------
+   Delete complaint
+---------------------------------------------------*/
 
 exports.deleteComplaint = async (req, res) => {
   try {
@@ -172,26 +246,46 @@ exports.deleteComplaint = async (req, res) => {
       userId: req.user._id,
     });
 
-    if (!complaint) {
-      return res.status(404).json({ message: "Complaint not found" });
-    }
+    if (!complaint)
+      return res.status(404).json({
+        message: "Complaint not found",
+      });
 
     await complaint.deleteOne();
-    res.status(200).json({ message: "Complaint deleted successfully" });
+
+    res.status(200).json({
+      message: "Complaint deleted successfully",
+    });
   } catch {
-    res.status(500).json({ message: "Delete failed" });
+    res.status(500).json({
+      message: "Delete failed",
+    });
   }
 };
+
+/* --------------------------------------------------
+   Escalate complaint
+---------------------------------------------------*/
 
 exports.escalateComplaint = async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id);
 
     if (!complaint)
-      return res.status(404).json({ message: "Complaint not found" });
+      return res.status(404).json({
+        message: "Complaint not found",
+      });
 
     if (new Date() < complaint.deadline)
-      return res.status(400).json({ message: "Deadline not passed yet" });
+      return res.status(400).json({
+        message: "Deadline not passed yet",
+      });
+
+    if (complaint.escalationLevel >= authorityLevels.length - 1) {
+      return res.status(400).json({
+        message: "Final escalation reached",
+      });
+    }
 
     complaint.escalationLevel += 1;
     complaint.assignedAuthority =
@@ -201,76 +295,38 @@ exports.escalateComplaint = async (req, res) => {
     complaint.deadline = getDeadlineByAuthority();
     complaint.lastEscalatedAt = new Date();
 
-    if (complaint.escalationLevel >= authorityLevels.length - 1) {
+    if (
+      complaint.escalationLevel >=
+      authorityLevels.length - 1
+    ) {
       complaint.finalEscalationReached = true;
       complaint.socialEscalated = true;
     }
 
     await complaint.save();
 
-    sendEmail({
-      to: complaint.reporterEmail,
-      subject: "Complaint Escalated – SwachConnect",
-      html: `
-        <h2>🚨 Complaint Escalated</h2>
-        <p>Your complaint has been escalated.</p>
-        <p><b>Current Authority:</b> ${complaint.assignedAuthority}</p>
-        <p>— SwachConnect Team</p>
-      `,
-    });
+    try {
+      await sendEmail({
+        to: complaint.reporterEmail,
+        subject: "Complaint Escalated – SwachConnect",
+        html: `
+          <h2>Complaint Escalated</h2>
+          <p>Your complaint has been escalated.</p>
+          <p><b>Authority:</b> ${complaint.assignedAuthority}</p>
+          <p>— SwachConnect Team</p>
+        `,
+      });
+    } catch (emailError) {
+      console.error(
+        "Escalation email failed:",
+        emailError.message
+      );
+    }
 
     res.status(200).json(complaint);
   } catch {
-    res.status(500).json({ message: "Escalation failed" });
-  }
-};
-
-exports.emailEscalateComplaint = async (req, res) => {
-  try {
-    const complaint = await Complaint.findOne({
-      emailActionToken: req.params.token,
-      emailActionExpires: { $gt: Date.now() },
+    res.status(500).json({
+      message: "Escalation failed",
     });
-
-    if (!complaint) {
-      return res.send(`<h1 style="color:red">❌ Invalid or Expired Link</h1>`);
-    }
-
-    complaint.escalationLevel += 1;
-    complaint.assignedAuthority =
-      authorityLevels[complaint.escalationLevel];
-    complaint.status = "Escalated";
-    complaint.deadline = getDeadlineByAuthority();
-    complaint.emailActionToken = null;
-    complaint.emailActionExpires = null;
-
-    await complaint.save();
-
-    res.send(`
-      <h1 style="color:green">✅ Complaint Escalated Successfully</h1>
-      <p><b>Authority:</b> ${complaint.assignedAuthority}</p>
-    `);
-  } catch {
-    res.send("Escalation failed.");
-  }
-};
-
-exports.emailWaitComplaint = async (req, res) => {
-  try {
-    const complaint = await Complaint.findOne({
-      emailActionToken: req.params.token,
-    });
-
-    if (!complaint) return res.send("Invalid request.");
-
-    complaint.status = "In Progress";
-    complaint.emailActionToken = null;
-    complaint.emailActionExpires = null;
-
-    await complaint.save();
-
-    res.send(`<h1>⏳ You chose to wait</h1>`);
-  } catch {
-    res.send("Failed.");
   }
 };

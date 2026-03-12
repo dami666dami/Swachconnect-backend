@@ -9,12 +9,16 @@ const complaintController = require("../controllers/complaintController");
 const {
   createComplaint,
   getUserComplaints,
-  getAllComplaints,       
+  getAllComplaints,
   deleteComplaint,
   escalateComplaint,
   emailEscalateComplaint,
   emailWaitComplaint,
 } = complaintController;
+
+/* --------------------------------------------------
+   Validate controller exports
+---------------------------------------------------*/
 
 if (
   !createComplaint ||
@@ -25,16 +29,36 @@ if (
   !emailEscalateComplaint ||
   !emailWaitComplaint
 ) {
-  console.error(" Complaint routes: One or more handlers are undefined");
+  console.error("❌ Complaint routes: Missing controller exports");
   throw new Error("Complaint controller exports mismatch");
 }
+
+/* --------------------------------------------------
+   Create Complaint (with image upload)
+---------------------------------------------------*/
 
 router.post(
   "/",
   protect,
-  upload.array("image", 5),
+  upload.array("image", 5), // allow up to 5 images
+  (req, res, next) => {
+    console.log("📨 Complaint upload request received");
+
+    if (req.files && req.files.length > 0) {
+      console.log(
+        "📸 Uploaded files:",
+        req.files.map((f) => f.filename)
+      );
+    }
+
+    next();
+  },
   createComplaint
 );
+
+/* --------------------------------------------------
+   Get logged-in user's complaints
+---------------------------------------------------*/
 
 router.get(
   "/my",
@@ -42,11 +66,19 @@ router.get(
   getUserComplaints
 );
 
+/* --------------------------------------------------
+   Get all complaints (admin)
+---------------------------------------------------*/
+
 router.get(
   "/all",
   protect,
   getAllComplaints
 );
+
+/* --------------------------------------------------
+   Delete complaint
+---------------------------------------------------*/
 
 router.delete(
   "/:id",
@@ -54,16 +86,28 @@ router.delete(
   deleteComplaint
 );
 
+/* --------------------------------------------------
+   Escalate complaint manually
+---------------------------------------------------*/
+
 router.put(
   "/escalate/:id",
   protect,
   escalateComplaint
 );
 
+/* --------------------------------------------------
+   Email escalation confirmation
+---------------------------------------------------*/
+
 router.get(
   "/email/escalate/:token",
   emailEscalateComplaint
 );
+
+/* --------------------------------------------------
+   Email waiting confirmation
+---------------------------------------------------*/
 
 router.get(
   "/email/wait/:token",
