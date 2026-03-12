@@ -1,5 +1,10 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+
+/* --------------------------------------------------
+   Authentication Middleware
+---------------------------------------------------*/
+
 const protect = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -20,10 +25,21 @@ const protect = async (req, res, next) => {
       });
     }
 
+    if (!process.env.JWT_SECRET) {
+      console.error("❌ JWT_SECRET not configured");
+      return res.status(500).json({
+        success: false,
+        message: "Server configuration error",
+      });
+    }
+
     let decoded;
+
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
+      console.warn("⚠ Invalid or expired token:", err.message);
+
       return res.status(401).json({
         success: false,
         message: "Token expired or invalid",
@@ -39,11 +55,16 @@ const protect = async (req, res, next) => {
       });
     }
 
-    req.user = user; 
+    /* --------------------------------------------------
+       Attach user to request
+    ---------------------------------------------------*/
+
+    req.user = user;
 
     next();
+
   } catch (error) {
-    console.error(" AUTH MIDDLEWARE ERROR:", error);
+    console.error("❌ AUTH MIDDLEWARE ERROR:", error);
 
     return res.status(401).json({
       success: false,

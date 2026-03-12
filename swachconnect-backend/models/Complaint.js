@@ -1,4 +1,9 @@
 const mongoose = require("mongoose");
+
+/* --------------------------------------------------
+   Complaint Schema
+---------------------------------------------------*/
+
 const complaintSchema = new mongoose.Schema(
   {
     userId: {
@@ -10,15 +15,16 @@ const complaintSchema = new mongoose.Schema(
 
     reporterName: {
       type: String,
-      default: null,
       trim: true,
+      default: null,
     },
 
     reporterEmail: {
       type: String,
-      default: null,
       lowercase: true,
       trim: true,
+      default: null,
+      match: [/^\S+@\S+\.\S+$/, "Invalid email format"],
     },
 
     isAnonymous: {
@@ -32,7 +38,12 @@ const complaintSchema = new mongoose.Schema(
       required: true,
       trim: true,
       minlength: 5,
+      maxlength: 1000,
     },
+
+    /* --------------------------------------------------
+       Images
+    ---------------------------------------------------*/
 
     images: {
       type: [String],
@@ -43,18 +54,32 @@ const complaintSchema = new mongoose.Schema(
       },
     },
 
+    /* --------------------------------------------------
+       Location
+    ---------------------------------------------------*/
+
     location: {
-      lat: { type: Number, default: null },
-      lng: { type: Number, default: null },
+      lat: {
+        type: Number,
+        default: null,
+      },
+      lng: {
+        type: Number,
+        default: null,
+      },
     },
+
+    /* --------------------------------------------------
+       Status tracking
+    ---------------------------------------------------*/
 
     status: {
       type: String,
       enum: [
         "Pending",
+        "In Progress",
         "Escalated",
         "Resolved",
-        "In Progress",
         "Pending Escalation",
       ],
       default: "Pending",
@@ -72,7 +97,7 @@ const complaintSchema = new mongoose.Schema(
       type: String,
       default: "Municipality / Panchayat",
       index: true,
-    },                              
+    },
 
     escalationLevel: {
       type: Number,
@@ -98,6 +123,10 @@ const complaintSchema = new mongoose.Schema(
       index: true,
     },
 
+    /* --------------------------------------------------
+       Email flags
+    ---------------------------------------------------*/
+
     escalationEmailSent: {
       type: Boolean,
       default: false,
@@ -108,11 +137,19 @@ const complaintSchema = new mongoose.Schema(
       default: false,
     },
 
+    /* --------------------------------------------------
+       Social escalation
+    ---------------------------------------------------*/
+
     socialEscalated: {
       type: Boolean,
       default: false,
       index: true,
     },
+
+    /* --------------------------------------------------
+       Email action tokens
+    ---------------------------------------------------*/
 
     emailActionToken: {
       type: String,
@@ -126,6 +163,10 @@ const complaintSchema = new mongoose.Schema(
       index: true,
     },
 
+    /* --------------------------------------------------
+       Escalation deadline
+    ---------------------------------------------------*/
+
     deadline: {
       type: Date,
       index: true,
@@ -134,6 +175,7 @@ const complaintSchema = new mongoose.Schema(
     escalationReason: {
       type: String,
       default: null,
+      maxlength: 500,
     },
 
     internalNotes: {
@@ -147,6 +189,10 @@ const complaintSchema = new mongoose.Schema(
   }
 );
 
+/* --------------------------------------------------
+   Indexes for performance
+---------------------------------------------------*/
+
 complaintSchema.index({ userId: 1, createdAt: -1 });
 complaintSchema.index({ status: 1, deadline: 1 });
 complaintSchema.index({ escalationLevel: 1, deadline: 1 });
@@ -154,5 +200,24 @@ complaintSchema.index({ escalationEmailSent: 1, deadline: 1 });
 complaintSchema.index({ socialEscalated: 1, status: 1 });
 complaintSchema.index({ isAnonymous: 1, status: 1 });
 complaintSchema.index({ assignedAuthority: 1, escalationLevel: 1 });
+
+/* --------------------------------------------------
+   Virtual field for image URLs
+---------------------------------------------------*/
+
+complaintSchema.virtual("imageUrls").get(function () {
+  const baseUrl =
+    process.env.BASE_URL || "http://localhost:4000";
+
+  return this.images.map((img) => `${baseUrl}${img}`);
+});
+
+/* --------------------------------------------------
+   Ensure virtual fields are included in JSON
+---------------------------------------------------*/
+
+complaintSchema.set("toJSON", {
+  virtuals: true,
+});
 
 module.exports = mongoose.model("Complaint", complaintSchema);

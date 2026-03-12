@@ -1,8 +1,12 @@
 const cron = require("node-cron");
-const mongoose = require("mongoose"); 
+const mongoose = require("mongoose");
 const Complaint = require("../models/Complaint");
 const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
+
+/* --------------------------------------------------
+   Authority levels
+---------------------------------------------------*/
 
 const authorities = [
   "Municipality / Panchayat",
@@ -14,23 +18,40 @@ const authorities = [
   "National Authorities",
 ];
 
+/* --------------------------------------------------
+   Email expiry rules
+---------------------------------------------------*/
+
 const getEmailExpiryByAuthority = (authority) => {
   if (authority === "Municipality / Panchayat") {
     return Date.now() + 24 * 60 * 60 * 1000;
   }
+
   return Date.now() + 48 * 60 * 60 * 1000;
 };
 
+/* --------------------------------------------------
+   Escalation logic
+---------------------------------------------------*/
+
 const runEscalationCron = async () => {
   try {
-    console.log(" Escalation cron started");
+    console.log("⏳ Escalation cron started");
+
+    /* ---------------------------
+       Ensure MongoDB connected
+    ---------------------------*/
 
     if (mongoose.connection.readyState !== 1) {
-      console.log(" MongoDB not connected. Skipping escalation cycle.");
+      console.log("⚠ MongoDB not connected. Skipping cycle.");
       return;
     }
 
     const now = new Date();
+
+    /* ---------------------------
+       Find complaints to escalate
+    ---------------------------*/
 
     const complaints = await Complaint.find({
       deadline: { $lt: now },
@@ -40,90 +61,125 @@ const runEscalationCron = async () => {
     }).populate("userId", "name email");
 
     if (!complaints.length) {
-      console.log(" No complaints eligible for escalation");
+      console.log("ℹ No complaints eligible for escalation");
       return;
     }
 
+    console.log(`📊 ${complaints.length} complaints ready for escalation`);
+
+    /* ---------------------------
+       Process each complaint
+    ---------------------------*/
+
     for (const complaint of complaints) {
-      const token = crypto.randomBytes(32).toString("hex");
+      try {
+        if (!complaint.userId || !complaint.userId.email) {
+          console.warn(
+            `⚠ Missing user/email for complaint ${complaint._id}`
+          );
+          continue;
+        }
 
-      complaint.emailActionToken = token;
-      complaint.emailActionExpires = getEmailExpiryByAuthority(
-        complaint.assignedAuthority
-      );
-      complaint.escalationEmailSent = true;
-      complaint.status = "Pending Escalation";
+        const token = crypto.randomBytes(32).toString("hex");
 
-      await complaint.save();
+        complaint.emailActionToken = token;
+        complaint.emailActionExpires = getEmailExpiryByAuthority(
+          complaint.assignedAuthority
+        );
 
-      const escalateUrl = `${process.env.BASE_URL}/api/complaints/email/escalate/${token}`;
-      const waitUrl = `${process.env.BASE_URL}/api/complaints/email/wait/${token}`;
+        complaint.escalationEmailSent = true;
+        complaint.status = "Pending Escalation";
 
-      const greeting = complaint.isAnonymous
-        ? "Hello,"
-        : `Dear ${complaint.userId?.name || "Citizen"},`;
+        await complaint.save();
 
-      await sendEmail({
-        to: complaint.userId.email,
-        subject: "Action Required: Complaint Escalation – SwachConnect",
-        html: `
-          <p>${greeting}</p>
+        const escalateUrl = `${process.env.BASE_URL}/api/complaints/email/escalate/${token}`;
+        const waitUrl = `${process.env.BASE_URL}/api/complaints/email/wait/${token}`;
 
-          <p>
-            Your complaint has not been resolved within the expected timeframe.
-          </p>
+        const greeting = complaint.isAnonymous
+          ? "Hello,"
+          : `Dear ${complaint.userId.name || "Citizen"},`;
 
-          <p>
-            <b>Current Authority:</b><br/>
-            ${complaint.assignedAuthority}
-          </p>
+        /* ---------------------------
+           Send escalation email
+        ---------------------------*/
 
-          <p>Please choose how you want to proceed:</p>
+        const emailSent = await sendEmail({
+          to: complaint.userId.email,
+          subject: "Action Required: Complaint Escalation – SwachConnect",
+          html: `
+            <p>${greeting}</p>
 
-          <a href="${escalateUrl}"
-             style="padding:10px 18px;
-                    background:#d32f2f;
-                    color:#fff;
-                    text-decoration:none;
-                    border-radius:6px;
-                    display:inline-block;">
-            Escalate Complaint
-          </a>
+            <p>
+              Your complaint has not been resolved within the expected timeframe.
+            </p>
 
-          &nbsp;&nbsp;
+            <p>
+              <b>Current Authority:</b><br/>
+              ${complaint.assignedAuthority}
+            </p>
 
-          <a href="${waitUrl}"
-             style="padding:10px 18px;
-                    background:#555;
-                    color:#fff;
-                    text-decoration:none;
-                    border-radius:6px;
-                    display:inline-block;">
-            Wait
-          </a>
+            <p>Please choose how you want to proceed:</p>
 
-          <p style="margin-top:20px;">
-            Regards,<br/>
-            <b>SwachConnect – Citizen Grievance System</b>
-          </p>
-        `,
-      });
+            <a href="${escalateUrl}"
+               style="padding:10px 18px;
+                      background:#d32f2f;
+                      color:#fff;
+                      text-decoration:none;
+                      border-radius:6px;
+                      display:inline-block;">
+              Escalate Complaint
+            </a>
 
-      console.log(
-        ` Escalation email sent → ${complaint.userId.email} | Complaint ID: ${complaint._id}`
-      );
+            &nbsp;&nbsp;
+
+            <a href="${waitUrl}"
+               style="padding:10px 18px;
+                      background:#555;
+                      color:#fff;
+                      text-decoration:none;
+                      border-radius:6px;
+                      display:inline-block;">
+              Wait
+            </a>
+
+            <p style="margin-top:20px;">
+              Regards,<br/>
+              <b>SwachConnect – Citizen Grievance System</b>
+            </p>
+          `,
+        });
+
+        if (emailSent) {
+          console.log(
+            `📧 Escalation email sent → ${complaint.userId.email}`
+          );
+        } else {
+          console.warn(
+            `⚠ Failed to send escalation email → ${complaint._id}`
+          );
+        }
+      } catch (err) {
+        console.error(
+          `❌ Error processing complaint ${complaint._id}:`,
+          err.message
+        );
+      }
     }
 
-    console.log(" Escalation cron finished");
+    console.log("✅ Escalation cron finished");
   } catch (err) {
-    console.error(" Escalation cron error:", err.message);
+    console.error("❌ Escalation cron error:", err.message);
   }
 };
+
+/* --------------------------------------------------
+   Run cron every hour
+---------------------------------------------------*/
 
 cron.schedule("0 * * * *", runEscalationCron, {
   timezone: "Asia/Kolkata",
 });
 
-console.log(" Escalation cron loaded and scheduled (runs hourly)");
+console.log("⏰ Escalation cron scheduled (runs hourly)");
 
 module.exports = runEscalationCron;
