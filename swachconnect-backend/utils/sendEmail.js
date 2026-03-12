@@ -9,40 +9,37 @@ if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
 }
 
 /* --------------------------------------------------
-   Create transporter (Render compatible)
+   Create transporter (Gmail + Render compatible)
 ---------------------------------------------------*/
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // STARTTLS
+  service: "gmail",
 
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
 
-  tls: {
-    rejectUnauthorized: false,
-  },
-
   connectionTimeout: 30000,
   greetingTimeout: 30000,
   socketTimeout: 30000,
+
+  tls: {
+    rejectUnauthorized: false,
+  },
 });
 
 /* --------------------------------------------------
-   Verify SMTP connection
+   Verify SMTP connection once at startup
 ---------------------------------------------------*/
 
-(async () => {
-  try {
-    await transporter.verify();
-    console.log("📧 SMTP server ready");
-  } catch (error) {
+transporter.verify((error, success) => {
+  if (error) {
     console.error("❌ SMTP connection failed:", error.message);
+  } else {
+    console.log("📧 SMTP server ready");
   }
-})();
+});
 
 /* --------------------------------------------------
    Send Email Function
@@ -57,6 +54,7 @@ const sendEmail = async ({
   replyTo = null,
 }) => {
   try {
+
     if (!to || !subject) {
       console.error("❌ Missing email 'to' or 'subject'");
       return false;
