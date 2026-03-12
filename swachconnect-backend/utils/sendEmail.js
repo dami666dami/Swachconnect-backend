@@ -5,30 +5,30 @@ const nodemailer = require("nodemailer");
 ---------------------------------------------------*/
 
 if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-  console.warn("⚠ EMAIL_USER or EMAIL_PASS not configured");
+  console.warn("⚠ EMAIL_USER or EMAIL_PASS not configured in environment");
 }
 
 /* --------------------------------------------------
-   Create transporter
+   Create transporter (Render compatible)
 ---------------------------------------------------*/
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
+  port: 587,
+  secure: false, // STARTTLS
 
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
 
-  connectionTimeout: 20000,
-  greetingTimeout: 20000,
-  socketTimeout: 20000,
-
   tls: {
     rejectUnauthorized: false,
   },
+
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
 });
 
 /* --------------------------------------------------
@@ -45,7 +45,7 @@ const transporter = nodemailer.createTransport({
 })();
 
 /* --------------------------------------------------
-   Send email function
+   Send Email Function
 ---------------------------------------------------*/
 
 const sendEmail = async ({
@@ -57,7 +57,6 @@ const sendEmail = async ({
   replyTo = null,
 }) => {
   try {
-
     if (!to || !subject) {
       console.error("❌ Missing email 'to' or 'subject'");
       return false;
