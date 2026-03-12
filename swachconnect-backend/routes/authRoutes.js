@@ -1,6 +1,10 @@
 const express = require("express");
 const router = express.Router();
 
+const protect = require("../middleware/authMiddleware");
+
+const authController = require("../controllers/authController");
+
 const {
   register,
   login,
@@ -8,20 +12,60 @@ const {
   verifyOtp,
   resetPassword,
   getMe,
-} = require("../controllers/authController");
+} = authController;
 
-const protect = require("../middleware/authMiddleware");
+/* --------------------------------------------------
+   Validate controller exports
+---------------------------------------------------*/
 
-router.post("/register", register);
+const requiredFunctions = [
+  "register",
+  "login",
+  "forgotPassword",
+  "verifyOtp",
+  "resetPassword",
+  "getMe",
+];
 
-router.post("/login", login);
+requiredFunctions.forEach((fn) => {
+  if (typeof authController[fn] !== "function") {
+    console.error(`❌ Auth routes: Missing controller export → ${fn}`);
+    throw new Error(`Auth controller export missing: ${fn}`);
+  }
+});
 
+/* --------------------------------------------------
+   AUTH ROUTES
+---------------------------------------------------*/
+
+/* Register new user */
+router.post("/register", (req, res, next) => {
+  console.log("📥 Register request received");
+  next();
+}, register);
+
+
+/* Login user */
+router.post("/login", (req, res, next) => {
+  console.log("🔑 Login request received");
+  next();
+}, login);
+
+
+/* Get current user */
 router.get("/me", protect, getMe);
 
+
+/* Forgot password - send OTP */
 router.post("/forgot-password", forgotPassword);
 
+
+/* Verify OTP */
 router.post("/verify-otp", verifyOtp);
 
+
+/* Reset password */
 router.post("/reset-password", resetPassword);
+
 
 module.exports = router;

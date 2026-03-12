@@ -1,13 +1,22 @@
 const nodemailer = require("nodemailer");
 
 /* --------------------------------------------------
-   Create transporter once (better performance)
+   Validate environment variables
+---------------------------------------------------*/
+
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  console.warn("⚠ EMAIL_USER or EMAIL_PASS not configured");
+}
+
+/* --------------------------------------------------
+   Create transporter
 ---------------------------------------------------*/
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 465,
   secure: true,
+
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
@@ -16,22 +25,27 @@ const transporter = nodemailer.createTransport({
   connectionTimeout: 20000,
   greetingTimeout: 20000,
   socketTimeout: 20000,
+
+  tls: {
+    rejectUnauthorized: false,
+  },
 });
 
 /* --------------------------------------------------
-   Verify SMTP on server startup
+   Verify SMTP connection
 ---------------------------------------------------*/
 
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("❌ SMTP connection failed:", error.message);
-  } else {
+(async () => {
+  try {
+    await transporter.verify();
     console.log("📧 SMTP server ready");
+  } catch (error) {
+    console.error("❌ SMTP connection failed:", error.message);
   }
-});
+})();
 
 /* --------------------------------------------------
-   Email sending function
+   Send email function
 ---------------------------------------------------*/
 
 const sendEmail = async ({
@@ -43,15 +57,9 @@ const sendEmail = async ({
   replyTo = null,
 }) => {
   try {
+
     if (!to || !subject) {
       console.error("❌ Missing email 'to' or 'subject'");
-      return false;
-    }
-
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.error(
-        "❌ EMAIL_USER or EMAIL_PASS missing in environment variables"
-      );
       return false;
     }
 
@@ -59,12 +67,15 @@ const sendEmail = async ({
       from: `"SwachConnect" <${process.env.EMAIL_USER}>`,
       to,
       subject,
+
       text:
         text ||
         (html
           ? "This is an official notification from SwachConnect."
           : "SwachConnect Notification"),
+
       html: html || undefined,
+
       attachments: Array.isArray(attachments) ? attachments : [],
     };
 
@@ -79,7 +90,9 @@ const sendEmail = async ({
     console.log("📌 Message ID:", info.messageId);
 
     return true;
+
   } catch (error) {
+
     console.error("❌ Email sending failed");
     console.error("Reason:", error.message);
 

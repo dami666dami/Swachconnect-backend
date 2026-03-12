@@ -18,18 +18,22 @@ if (!fs.existsSync(uploadDir)) {
 ---------------------------------------------------*/
 
 const storage = multer.diskStorage({
+
   destination: (req, file, cb) => {
     cb(null, uploadDir);
   },
 
   filename: (req, file, cb) => {
+
     const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
 
     const uniqueName =
       Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
 
     cb(null, uniqueName);
+
   },
+
 });
 
 /* --------------------------------------------------
@@ -37,6 +41,7 @@ const storage = multer.diskStorage({
 ---------------------------------------------------*/
 
 const fileFilter = (req, file, cb) => {
+
   const allowedExt = [
     ".jpg",
     ".jpeg",
@@ -52,20 +57,21 @@ const fileFilter = (req, file, cb) => {
     "image/webp",
     "image/heic",
     "image/heif",
-    "application/octet-stream",
+    "application/octet-stream"
   ];
 
   const ext = path.extname(file.originalname).toLowerCase();
 
   if (!allowedExt.includes(ext)) {
-    return cb(new Error("Invalid file extension"), false);
+    return cb(new Error("Only image files are allowed"), false);
   }
 
   if (!allowedMime.includes(file.mimetype)) {
-    return cb(new Error("Invalid file type"), false);
+    return cb(new Error("Invalid image type"), false);
   }
 
   cb(null, true);
+
 };
 
 /* --------------------------------------------------
@@ -73,42 +79,45 @@ const fileFilter = (req, file, cb) => {
 ---------------------------------------------------*/
 
 const upload = multer({
+
   storage,
+
   fileFilter,
+
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
-  },
+    fileSize: 5 * 1024 * 1024 // 5MB
+  }
+
 });
 
 /* --------------------------------------------------
-   Middleware wrapper for error handling
+   Error handler wrapper
 ---------------------------------------------------*/
 
-const uploadSingleImage = (fieldName) => {
-  return (req, res, next) => {
-    const uploader = upload.single(fieldName);
+const uploadMiddleware = (req, res, next) => {
 
-    uploader(req, res, function (err) {
-      if (err instanceof multer.MulterError) {
-        return res.status(400).json({
-          success: false,
-          message: err.message,
-        });
-      }
+  const uploader = upload.array("image", 5);
 
-      if (err) {
-        return res.status(400).json({
-          success: false,
-          message: err.message,
-        });
-      }
+  uploader(req, res, function (err) {
 
-      next();
-    });
-  };
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({
+        success: false,
+        message: err.message
+      });
+    }
+
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message
+      });
+    }
+
+    next();
+
+  });
+
 };
 
-module.exports = {
-  upload,
-  uploadSingleImage,
-};
+module.exports = upload;

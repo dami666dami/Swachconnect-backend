@@ -17,30 +17,37 @@ const {
 } = complaintController;
 
 /* --------------------------------------------------
-   Validate controller exports
+   Validate controller exports (prevents server crash)
 ---------------------------------------------------*/
 
-if (
-  !createComplaint ||
-  !getUserComplaints ||
-  !getAllComplaints ||
-  !deleteComplaint ||
-  !escalateComplaint ||
-  !emailEscalateComplaint ||
-  !emailWaitComplaint
-) {
-  console.error("❌ Complaint routes: Missing controller exports");
-  throw new Error("Complaint controller exports mismatch");
-}
+const requiredFunctions = [
+  "createComplaint",
+  "getUserComplaints",
+  "getAllComplaints",
+  "deleteComplaint",
+  "escalateComplaint",
+  "emailEscalateComplaint",
+  "emailWaitComplaint",
+];
+
+requiredFunctions.forEach((fn) => {
+  if (typeof complaintController[fn] !== "function") {
+    console.error(`❌ Complaint routes: Missing controller export → ${fn}`);
+    throw new Error(`Complaint controller export missing: ${fn}`);
+  }
+});
+
+
 
 /* --------------------------------------------------
-   Create Complaint (with image upload)
+   CREATE COMPLAINT
 ---------------------------------------------------*/
 
 router.post(
   "/",
   protect,
-  upload.array("image", 5), // allow up to 5 images
+  upload.array("image", 5),
+
   (req, res, next) => {
     console.log("📨 Complaint upload request received");
 
@@ -49,15 +56,20 @@ router.post(
         "📸 Uploaded files:",
         req.files.map((f) => f.filename)
       );
+    } else {
+      console.log("⚠ No images uploaded");
     }
 
     next();
   },
+
   createComplaint
 );
 
+
+
 /* --------------------------------------------------
-   Get logged-in user's complaints
+   GET USER COMPLAINTS
 ---------------------------------------------------*/
 
 router.get(
@@ -66,8 +78,10 @@ router.get(
   getUserComplaints
 );
 
+
+
 /* --------------------------------------------------
-   Get all complaints (admin)
+   GET ALL COMPLAINTS (ADMIN)
 ---------------------------------------------------*/
 
 router.get(
@@ -76,8 +90,10 @@ router.get(
   getAllComplaints
 );
 
+
+
 /* --------------------------------------------------
-   Delete complaint
+   DELETE COMPLAINT
 ---------------------------------------------------*/
 
 router.delete(
@@ -86,8 +102,10 @@ router.delete(
   deleteComplaint
 );
 
+
+
 /* --------------------------------------------------
-   Escalate complaint manually
+   MANUAL ESCALATION
 ---------------------------------------------------*/
 
 router.put(
@@ -96,8 +114,10 @@ router.put(
   escalateComplaint
 );
 
+
+
 /* --------------------------------------------------
-   Email escalation confirmation
+   EMAIL ESCALATE ACTION
 ---------------------------------------------------*/
 
 router.get(
@@ -105,13 +125,17 @@ router.get(
   emailEscalateComplaint
 );
 
+
+
 /* --------------------------------------------------
-   Email waiting confirmation
+   EMAIL WAIT ACTION
 ---------------------------------------------------*/
 
 router.get(
   "/email/wait/:token",
   emailWaitComplaint
 );
+
+
 
 module.exports = router;
