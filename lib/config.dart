@@ -1,11 +1,9 @@
 import 'package:flutter/foundation.dart';
 
 class AppConfig {
-  /* ================= BACKEND ================= */
 
-  /// Base URL for backend API
   static String get backendBase {
-    return "http://10.77.175.169:4000";
+    return "https://swachconnect-backend.onrender.com";
   }
 
   static const String tokenKey = "token";
