@@ -9,28 +9,26 @@ if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
 }
 
 /* --------------------------------------------------
-   Create transporter (Gmail + Render compatible)
+   Create transporter (Brevo SMTP)
 ---------------------------------------------------*/
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp-relay.brevo.com",
+  port: 587,
+  secure: false,
 
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.EMAIL_USER, // Brevo login
+    pass: process.env.EMAIL_PASS  // Brevo SMTP key
   },
 
   connectionTimeout: 30000,
   greetingTimeout: 30000,
-  socketTimeout: 30000,
-
-  tls: {
-    rejectUnauthorized: false,
-  },
+  socketTimeout: 30000
 });
 
 /* --------------------------------------------------
-   Verify SMTP connection once at startup
+   Verify SMTP connection
 ---------------------------------------------------*/
 
 transporter.verify((error, success) => {
@@ -51,7 +49,7 @@ const sendEmail = async ({
   text = null,
   html = null,
   attachments = [],
-  replyTo = null,
+  replyTo = null
 }) => {
   try {
 
@@ -61,7 +59,7 @@ const sendEmail = async ({
     }
 
     const mailOptions = {
-      from: `"SwachConnect" <${process.env.EMAIL_USER}>`,
+      from: `"SwachConnect" <swachconnect@gmail.com>`, // sender Gmail
       to,
       subject,
 
@@ -73,7 +71,7 @@ const sendEmail = async ({
 
       html: html || undefined,
 
-      attachments: Array.isArray(attachments) ? attachments : [],
+      attachments: Array.isArray(attachments) ? attachments : []
     };
 
     if (replyTo) {
