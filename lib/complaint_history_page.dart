@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
@@ -37,13 +36,9 @@ class _ComplaintHistoryPageState extends State<ComplaintHistoryPage> {
   void initState() {
     super.initState();
     fetchComplaints();
-
-    _autoRefreshTimer = Timer.periodic(
-      const Duration(seconds: 20),
-          (_) {
-        if (mounted) fetchComplaints();
-      },
-    );
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (mounted) fetchComplaints();
+    });
   }
 
   @override
@@ -190,8 +185,7 @@ class _ComplaintHistoryPageState extends State<ComplaintHistoryPage> {
 
       final res = await http.put(
         Uri.parse(
-          "${AppConfig.backendBase}/api/complaints/escalate/${complaint['_id']}",
-        ),
+            "${AppConfig.backendBase}/api/complaints/escalate/${complaint['_id']}"),
         headers: {"Authorization": "Bearer $token"},
       );
 
@@ -227,7 +221,7 @@ class _ComplaintHistoryPageState extends State<ComplaintHistoryPage> {
     }
   }
 
-  /* ================= SOCIAL MEDIA ESCALATION ================= */
+  /* ================= SOCIAL MEDIA ================= */
 
   void confirmSocialShare(Map<String, dynamic> complaint) {
     showDialog(
@@ -283,18 +277,44 @@ Help raise awareness for cleaner communities.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(AppText.t("myComplaints"))),
+      appBar: AppBar(
+        title: Text(AppText.t("myComplaints")),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF00A86B), Color(0xFF00796B)],
+            ),
+          ),
+        ),
+        elevation: 4,
+        centerTitle: true,
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : complaints.isEmpty
-          ? Center(child: Text(AppText.t("noComplaints")))
+          ? Center(
+        child: Text(
+          AppText.t("noComplaints"),
+          style: const TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      )
           : RefreshIndicator(
         onRefresh: fetchComplaints,
         child: ListView.builder(
+          padding:
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           itemCount: complaints.length,
-          itemBuilder: (_, i) => _complaintCard(complaints[i]),
+          itemBuilder: (_, i) => _animatedCard(complaints[i], i),
         ),
       ),
+    );
+  }
+
+  Widget _animatedCard(Map<String, dynamic> complaint, int index) {
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 300 + (index * 60)),
+      curve: Curves.easeInOut,
+      child: _complaintCard(complaint),
     );
   }
 
@@ -304,11 +324,11 @@ Help raise awareness for cleaner communities.
     final bool resolved = c['status'] == "Resolved";
     final bool deadlinePassed = isDeadlinePassed(c['deadline']);
     final int escalationLevel = c['escalationLevel'] ?? 0;
-    final bool finalEscalation =
-        escalationLevel >= authorityLevels.length - 1;
-
+    final bool finalEscalation = escalationLevel >= authorityLevels.length - 1;
     final bool isAnonymous =
         c['isAnonymous'] == true || c['isAnonymous'] == "true";
+
+    final status = (c['status'] ?? "UNKNOWN").toString().toUpperCase();
 
     Color statusColor = resolved
         ? Colors.green
@@ -316,75 +336,113 @@ Help raise awareness for cleaner communities.
         ? Colors.orange
         : Colors.amber;
 
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 10),
-        ],
-        color: Colors.white,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  (c['status'] ?? "UNKNOWN").toString().toUpperCase(),
-                  style: TextStyle(
-                    color: statusColor,
-                    fontWeight: FontWeight.bold,
+    IconData statusIcon = resolved
+        ? Icons.check_circle
+        : c['status'] == "Escalated"
+        ? Icons.warning
+        : Icons.hourglass_bottom;
+
+    return Card(
+      elevation: 5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [Colors.white, Colors.grey.shade50],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(statusIcon, color: statusColor, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
-              ),
-              if (isAnonymous)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Chip(
+                if (isAnonymous)
+                  Chip(
                     label: Text(AppText.t("anonymous")),
-                    backgroundColor: Colors.black12,
+                    backgroundColor: Colors.grey.shade200,
+                    avatar: const Icon(Icons.shield, size: 16),
+                  ),
+                if (c['status'] == "Pending")
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.redAccent),
+                    onPressed: () => confirmDelete(c),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "${AppText.t("authority")}: ${c['assignedAuthority'] ?? 'N/A'}",
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: LinearProgressIndicator(
+                minHeight: 8,
+                value: ((c['progress'] ?? 0) as int) / 100,
+                backgroundColor: Colors.grey.shade200,
+                valueColor: AlwaysStoppedAnimation(statusColor),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "${AppText.t("progress")}: ${c['progress'] ?? 0}%",
+              style: const TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 14),
+            if (deadlinePassed && !resolved && !finalEscalation)
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orangeAccent,
+                  minimumSize: const Size(double.infinity, 40),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-              if (c['status'] == "Pending")
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => confirmDelete(c),
+                icon: _escalating
+                    ? const SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+                    : const Icon(Icons.trending_up, color: Colors.white),
+                label: Text(AppText.t("escalate")),
+                onPressed: _escalating ? null : () => confirmEscalation(c),
+              ),
+            if (deadlinePassed && !resolved && finalEscalation)
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.teal,
+                  side: const BorderSide(color: Colors.teal),
+                  minimumSize: const Size(double.infinity, 40),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text("${AppText.t("authority")}: ${c['assignedAuthority'] ?? 'N/A'}"),
-          const SizedBox(height: 8),
-          LinearProgressIndicator(
-            value: ((c['progress'] ?? 0) as int) / 100,
-            valueColor: AlwaysStoppedAnimation(statusColor),
-          ),
-          const SizedBox(height: 8),
-          Text("${AppText.t("progress")}: ${c['progress'] ?? 0}%"),
-          const SizedBox(height: 12),
-
-          if (deadlinePassed && !resolved && !finalEscalation)
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-              onPressed: _escalating ? null : () => confirmEscalation(c),
-              child: _escalating
-                  ? const SizedBox(
-                height: 18,
-                width: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-                  : Text(AppText.t("escalate")),
-            ),
-
-          if (deadlinePassed && !resolved && finalEscalation)
-            OutlinedButton(
-              onPressed: () => confirmSocialShare(c),
-              child: Text(AppText.t("shareAwareness")),
-            ),
-        ],
+                icon: const Icon(Icons.share_outlined),
+                label: Text(AppText.t("shareAwareness")),
+                onPressed: () => confirmSocialShare(c),
+              ),
+          ],
+        ),
       ),
     );
   }
