@@ -67,6 +67,10 @@ const complaintSchema = new mongoose.Schema(
         type: Number,
         default: null,
       },
+      address: {
+        type: String,
+        default: null,
+      },
     },
 
     /* --------------------------------------------------
@@ -147,6 +151,16 @@ const complaintSchema = new mongoose.Schema(
       index: true,
     },
 
+    socialPostContent: {
+      type: String,
+      default: null,
+    },
+
+    socialPostedAt: {
+      type: Date,
+      default: null,
+    },
+
     /* --------------------------------------------------
        Email action tokens
     ---------------------------------------------------*/
@@ -170,6 +184,10 @@ const complaintSchema = new mongoose.Schema(
     deadline: {
       type: Date,
       index: true,
+      default: function () {
+        // auto deadline = 3 days
+        return new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+      },
     },
 
     escalationReason: {
@@ -182,6 +200,28 @@ const complaintSchema = new mongoose.Schema(
       type: String,
       default: null,
       select: false,
+    },
+
+    /* --------------------------------------------------
+       Feedback (NEW 🔥)
+    ---------------------------------------------------*/
+
+    feedbackGiven: {
+      type: Boolean,
+      default: false,
+    },
+
+    feedbackRating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: null,
+    },
+
+    feedbackMessage: {
+      type: String,
+      default: null,
+      maxlength: 500,
     },
   },
   {
@@ -207,9 +247,16 @@ complaintSchema.index({ assignedAuthority: 1, escalationLevel: 1 });
 
 complaintSchema.virtual("imageUrls").get(function () {
   const baseUrl =
-    process.env.BASE_URL || "http://localhost:4000";
+    process.env.BASE_URL ||
+    "http://localhost:4000";
 
-  return this.images.map((img) => `${baseUrl}${img}`);
+  if (!this.images || this.images.length === 0) return [];
+
+  return this.images.map((img) =>
+    img.startsWith("http")
+      ? img
+      : `${baseUrl}${img}`
+  );
 });
 
 /* --------------------------------------------------
@@ -218,6 +265,18 @@ complaintSchema.virtual("imageUrls").get(function () {
 
 complaintSchema.set("toJSON", {
   virtuals: true,
+});
+
+/* --------------------------------------------------
+   Pre-save hook (auto logic)
+---------------------------------------------------*/
+
+complaintSchema.pre("save", function (next) {
+  // mark final escalation automatically
+  if (this.escalationLevel >= 6) {
+    this.finalEscalationReached = true;
+  }
+  next();
 });
 
 module.exports = mongoose.model("Complaint", complaintSchema);
