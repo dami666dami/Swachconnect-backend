@@ -10,7 +10,19 @@ if (!process.env.EMAIL_PASS) {
 }
 
 /* --------------------------------------------------
-   OPTIONAL SMTP (backup only)
+   🔥 PRIMARY SMTP (GMAIL)
+---------------------------------------------------*/
+
+const gmailTransporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "swachconnect@gmail.com",
+    pass: process.env.EMAIL_PASS // Gmail App Password (no spaces)
+  }
+});
+
+/* --------------------------------------------------
+   OPTIONAL SMTP (Brevo backup)
 ---------------------------------------------------*/
 
 const transporter = nodemailer.createTransport({
@@ -33,7 +45,23 @@ const transporter = nodemailer.createTransport({
 });
 
 /* --------------------------------------------------
-   🔥 PRIMARY METHOD: Brevo API
+   🔥 PRIMARY METHOD: Gmail SMTP
+---------------------------------------------------*/
+
+const sendViaGmail = async (mailOptions) => {
+  try {
+    console.log("📤 Sending via Gmail...");
+    await gmailTransporter.sendMail(mailOptions);
+    console.log("✅ Email sent via Gmail");
+    return true;
+  } catch (error) {
+    console.error("❌ Gmail failed:", error.message);
+    return false;
+  }
+};
+
+/* --------------------------------------------------
+   🔥 SECOND METHOD: Brevo API
 ---------------------------------------------------*/
 
 const sendViaAPI = async ({ to, subject, html, text }) => {
@@ -44,7 +72,7 @@ const sendViaAPI = async ({ to, subject, html, text }) => {
       "https://api.brevo.com/v3/smtp/email",
       {
         sender: {
-          name: "SwachConnect",
+          name: "SwachConnect Support Team",
           email: "swachconnect@gmail.com"
         },
         to: [{ email: to }],
@@ -71,7 +99,7 @@ const sendViaAPI = async ({ to, subject, html, text }) => {
 };
 
 /* --------------------------------------------------
-   🔁 BACKUP METHOD: SMTP
+   🔁 BACKUP METHOD: Brevo SMTP
 ---------------------------------------------------*/
 
 const sendViaSMTP = async (mailOptions) => {
@@ -121,12 +149,17 @@ const sendEmail = async ({
       mailOptions.replyTo = replyTo;
     }
 
-    /* 🔥 STEP 1: TRY API FIRST (FAST) */
+    /* 🔥 STEP 1: TRY GMAIL (shows in your phone) */
+    const gmailSuccess = await sendViaGmail(mailOptions);
+
+    if (gmailSuccess) return true;
+
+    /* 🔥 STEP 2: TRY BREVO API */
     const apiSuccess = await sendViaAPI({ to, subject, html, text });
 
     if (apiSuccess) return true;
 
-    /* 🔁 STEP 2: FALLBACK SMTP */
+    /* 🔁 STEP 3: FALLBACK SMTP */
     return await sendViaSMTP(mailOptions);
 
   } catch (error) {
