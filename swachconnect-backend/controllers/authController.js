@@ -6,6 +6,13 @@ const sendEmail = require("../utils/sendEmail");
 /* ================= JWT TOKEN ================= */
 
 const generateToken = (id) => {
+
+  // 🔥 FIX: ensure JWT_SECRET exists
+  if (!process.env.JWT_SECRET) {
+    console.error("❌ JWT_SECRET not defined");
+    throw new Error("JWT_SECRET missing");
+  }
+
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });

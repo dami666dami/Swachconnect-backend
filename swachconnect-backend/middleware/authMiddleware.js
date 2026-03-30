@@ -16,7 +16,8 @@ const protect = async (req, res, next) => {
       });
     }
 
-    const token = authHeader.split(" ")[1];
+    // 🔥 FIX 1: Trim token (IMPORTANT)
+    const token = authHeader.split(" ")[1]?.trim();
 
     if (!token) {
       return res.status(401).json({
@@ -40,9 +41,18 @@ const protect = async (req, res, next) => {
     } catch (err) {
       console.warn("⚠ Invalid or expired token:", err.message);
 
+      // 🔥 FIX 2: Better error clarity (optional but useful)
+      let message = "Token expired or invalid";
+
+      if (err.name === "TokenExpiredError") {
+        message = "Token expired";
+      } else if (err.name === "JsonWebTokenError") {
+        message = "Invalid token signature";
+      }
+
       return res.status(401).json({
         success: false,
-        message: "Token expired or invalid",
+        message,
       });
     }
 
