@@ -19,10 +19,21 @@ const authorities = [
 ];
 
 /* --------------------------------------------------
+   🔥 DEMO MODE CONTROL
+---------------------------------------------------*/
+
+const DEMO_MODE = process.env.DEMO_MODE === "true";
+
+/* --------------------------------------------------
    Email expiry rules
 ---------------------------------------------------*/
 
 const getEmailExpiryByAuthority = (authority) => {
+
+  if (DEMO_MODE) {
+    return Date.now() + 5 * 60 * 1000; 
+  }
+
   if (authority === "Municipality / Panchayat") {
     return Date.now() + 24 * 60 * 60 * 1000;
   }
@@ -38,20 +49,12 @@ const runEscalationCron = async () => {
   try {
     console.log("⏳ Escalation cron started");
 
-    /* ---------------------------
-       Ensure MongoDB connected
-    ---------------------------*/
-
     if (mongoose.connection.readyState !== 1) {
       console.log("⚠ MongoDB not connected. Skipping cycle.");
       return;
     }
 
     const now = new Date();
-
-    /* ---------------------------
-       Find complaints to escalate
-    ---------------------------*/
 
     const complaints = await Complaint.find({
       deadline: { $lt: now },
@@ -67,22 +70,18 @@ const runEscalationCron = async () => {
 
     console.log(`📊 ${complaints.length} complaints ready for escalation`);
 
-    /* ---------------------------
-       Process each complaint
-    ---------------------------*/
-
     for (const complaint of complaints) {
       try {
         if (!complaint.userId || !complaint.userId.email) {
-          console.warn(
-            `⚠ Missing user/email for complaint ${complaint._id}`
-          );
+          console.warn(`⚠ Missing user/email for complaint ${complaint._id}`);
           continue;
         }
 
         const token = crypto.randomBytes(32).toString("hex");
 
         complaint.emailActionToken = token;
+
+        /* 🔥 FIXED DEADLINE LOGIC */
         complaint.emailActionExpires = getEmailExpiryByAuthority(
           complaint.assignedAuthority
         );
@@ -99,46 +98,29 @@ const runEscalationCron = async () => {
           ? "Hello,"
           : `Dear ${complaint.userId.name || "Citizen"},`;
 
-        /* ---------------------------
-           Send escalation email
-        ---------------------------*/
-
         const emailSent = await sendEmail({
           to: complaint.userId.email,
           subject: "Action Required: Complaint Escalation – SwachConnect",
           html: `
             <p>${greeting}</p>
 
-            <p>
-              Your complaint has not been resolved within the expected timeframe.
-            </p>
+            <p>Your complaint has not been resolved within the expected timeframe.</p>
 
-            <p>
-              <b>Current Authority:</b><br/>
-              ${complaint.assignedAuthority}
-            </p>
+            <p><b>Current Authority:</b><br/>${complaint.assignedAuthority}</p>
+
+            <p><b>Escalation Level:</b> ${complaint.escalationLevel + 1}</p>
 
             <p>Please choose how you want to proceed:</p>
 
             <a href="${escalateUrl}"
-               style="padding:10px 18px;
-                      background:#d32f2f;
-                      color:#fff;
-                      text-decoration:none;
-                      border-radius:6px;
-                      display:inline-block;">
+               style="padding:10px 18px;background:#d32f2f;color:#fff;text-decoration:none;border-radius:6px;display:inline-block;">
               Escalate Complaint
             </a>
 
             &nbsp;&nbsp;
 
             <a href="${waitUrl}"
-               style="padding:10px 18px;
-                      background:#555;
-                      color:#fff;
-                      text-decoration:none;
-                      border-radius:6px;
-                      display:inline-block;">
+               style="padding:10px 18px;background:#555;color:#fff;text-decoration:none;border-radius:6px;display:inline-block;">
               Wait
             </a>
 
@@ -150,36 +132,38 @@ const runEscalationCron = async () => {
         });
 
         if (emailSent) {
-          console.log(
-            `📧 Escalation email sent → ${complaint.userId.email}`
-          );
+          console.log(`📧 Escalation email sent → ${complaint.userId.email}`);
         } else {
-          console.warn(
-            `⚠ Failed to send escalation email → ${complaint._id}`
-          );
+          console.warn(`⚠ Failed to send escalation email → ${complaint._id}`);
         }
+
       } catch (err) {
-        console.error(
-          `❌ Error processing complaint ${complaint._id}:`,
-          err.message
-        );
+        console.error(`❌ Error processing complaint ${complaint._id}:`, err.message);
       }
     }
 
     console.log("✅ Escalation cron finished");
+
   } catch (err) {
     console.error("❌ Escalation cron error:", err.message);
   }
 };
 
 /* --------------------------------------------------
-   Run cron every hour
+   Run cron
 ---------------------------------------------------*/
 
-cron.schedule("0 * * * *", runEscalationCron, {
-  timezone: "Asia/Kolkata",
-});
-
-console.log("⏰ Escalation cron scheduled (runs hourly)");
+/* 🔥 DEMO MODE FAST CRON */
+if (DEMO_MODE) {
+  cron.schedule("*/2 * * * *", runEscalationCron, {
+    timezone: "Asia/Kolkata",
+  });
+  console.log("⏰ DEMO MODE: Escalation cron runs every 2 minutes");
+} else {
+  cron.schedule("0 * * * *", runEscalationCron, {
+    timezone: "Asia/Kolkata",
+  });
+  console.log("⏰ Escalation cron runs hourly");
+}
 
 module.exports = runEscalationCron;

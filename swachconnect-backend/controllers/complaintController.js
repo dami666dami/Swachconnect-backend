@@ -12,8 +12,17 @@ const authorityLevels = [
   "National Authorities",
 ];
 
-const getDeadlineByAuthority = () => {
-  return new Date(Date.now() + 2 * 60 * 1000);
+const getEmailExpiryByAuthority = (authority) => {
+
+  if (DEMO_MODE) {
+    return Date.now() + 5 * 60 * 1000; 
+  }
+
+  if (authority === "Municipality / Panchayat") {
+    return Date.now() + 24 * 60 * 60 * 1000;
+  }
+
+  return Date.now() + 48 * 60 * 60 * 1000;
 };
 
 const getDistanceInMeters = (lat1, lng1, lat2, lng2) => {
@@ -297,7 +306,9 @@ exports.emailEscalateComplaint = async (req, res) => {
     });
 
     if (!complaint) {
-      return res.send("<h2>Invalid or expired link</h2>");
+      return res.send(`
+        <h2>❌ Invalid or expired link</h2>
+      `);
     }
 
     complaint.escalationLevel += 1;
@@ -310,10 +321,42 @@ exports.emailEscalateComplaint = async (req, res) => {
 
     await complaint.save();
 
-    res.send("<h2>Complaint escalated successfully</h2>");
+    /* 🔥 BEAUTIFUL PAGE */
+    res.send(`
+      <html>
+      <head>
+        <title>Escalation Successful</title>
+        <style>
+          body {
+            font-family: Arial;
+            text-align: center;
+            padding: 50px;
+            background: #f4f6f8;
+          }
+          .box {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            display: inline-block;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+          }
+          h2 { color: green; }
+          h3 { color: #1976d2; }
+        </style>
+      </head>
+      <body>
+        <div class="box">
+          <h2>✅ Complaint Escalated Successfully</h2>
+          <p>Your complaint is now escalated to:</p>
+          <h3>${complaint.assignedAuthority}</h3>
+          <p>Higher authority will take action soon.</p>
+        </div>
+      </body>
+      </html>
+    `);
 
   } catch (err) {
-    res.send("Escalation failed");
+    res.send("<h2>❌ Escalation failed</h2>");
   }
 };
 
@@ -328,7 +371,7 @@ exports.emailWaitComplaint = async (req, res) => {
     });
 
     if (!complaint) {
-      return res.send("Invalid request");
+      return res.send("<h2>Invalid request</h2>");
     }
 
     complaint.status = "In Progress";
@@ -337,7 +380,14 @@ exports.emailWaitComplaint = async (req, res) => {
 
     await complaint.save();
 
-    res.send("<h2>You chose to wait</h2>");
+    res.send(`
+      <html>
+      <body style="text-align:center;padding:50px;">
+        <h2>⏳ You chose to wait</h2>
+        <p>The authority still has time to resolve your complaint.</p>
+      </body>
+      </html>
+    `);
 
   } catch (err) {
     res.send("Failed");
