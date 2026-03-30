@@ -271,12 +271,10 @@ complaintSchema.set("toJSON", {
    Pre-save hook (auto logic)
 ---------------------------------------------------*/
 
-complaintSchema.pre("save", function (next) {
-  // mark final escalation automatically
+complaintSchema.pre("save", async function () {
   if (this.escalationLevel >= 6) {
     this.finalEscalationReached = true;
   }
-  next();
 });
 
 module.exports = mongoose.model("Complaint", complaintSchema);

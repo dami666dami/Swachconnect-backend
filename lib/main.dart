@@ -789,6 +789,7 @@ class _LoginPageState extends State<LoginPage> {
         }
         await prefs.setString(AppConfig.tokenKey, token);await prefs.setString(AppConfig.tokenKey, body["token"]);
         await prefs.setString(AppConfig.nameKey, body["user"]?["name"] ?? "User");
+        print("FULL RESPONSE: $body");
         print("TOKEN SAVED: $token");
         if (!mounted) return;
         Navigator.pushReplacement(
