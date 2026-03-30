@@ -5,12 +5,12 @@ const axios = require("axios");
    Validate environment variables
 ---------------------------------------------------*/
 
-if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-  console.warn("⚠ EMAIL_USER or EMAIL_PASS not configured in environment");
+if (!process.env.EMAIL_PASS) {
+  console.warn("⚠ EMAIL_PASS not configured");
 }
 
 /* --------------------------------------------------
-   Create transporter (Brevo SMTP)
+   OPTIONAL SMTP (backup only)
 ---------------------------------------------------*/
 
 const transporter = nodemailer.createTransport({
@@ -23,35 +23,24 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS
   },
 
-  requireTLS: true,
   tls: {
     rejectUnauthorized: false
   },
 
-  connectionTimeout: 60000,
-  greetingTimeout: 60000,
-  socketTimeout: 60000
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 10000
 });
 
 /* --------------------------------------------------
-   Verify SMTP connection
----------------------------------------------------*/
-
-transporter.verify((error) => {
-  if (error) {
-    console.error("❌ SMTP connection failed:", error.message);
-  } else {
-    console.log("📧 SMTP ready");
-  }
-});
-
-/* --------------------------------------------------
-   🔥 Brevo API fallback
+   🔥 PRIMARY METHOD: Brevo API
 ---------------------------------------------------*/
 
 const sendViaAPI = async ({ to, subject, html, text }) => {
   try {
-    const response = await axios.post(
+    console.log("📤 Sending email via Brevo API...");
+
+    await axios.post(
       "https://api.brevo.com/v3/smtp/email",
       {
         sender: {
@@ -67,21 +56,38 @@ const sendViaAPI = async ({ to, subject, html, text }) => {
         headers: {
           "api-key": process.env.EMAIL_PASS,
           "Content-Type": "application/json"
-        }
+        },
+        timeout: 15000
       }
     );
 
-    console.log("✅ Email sent via Brevo API");
+    console.log("✅ Email sent via API");
     return true;
 
   } catch (error) {
-    console.error("❌ Brevo API failed:", error.response?.data || error.message);
+    console.error("❌ API failed:", error.response?.data || error.message);
     return false;
   }
 };
 
 /* --------------------------------------------------
-   Send Email Function (SMART)
+   🔁 BACKUP METHOD: SMTP
+---------------------------------------------------*/
+
+const sendViaSMTP = async (mailOptions) => {
+  try {
+    console.log("📤 Trying SMTP backup...");
+    await transporter.sendMail(mailOptions);
+    console.log("✅ Email sent via SMTP");
+    return true;
+  } catch (error) {
+    console.error("❌ SMTP backup failed:", error.message);
+    return false;
+  }
+};
+
+/* --------------------------------------------------
+   FINAL SEND FUNCTION
 ---------------------------------------------------*/
 
 const sendEmail = async ({
@@ -115,24 +121,16 @@ const sendEmail = async ({
       mailOptions.replyTo = replyTo;
     }
 
-    console.log("📤 Attempting SMTP email...");
+    /* 🔥 STEP 1: TRY API FIRST (FAST) */
+    const apiSuccess = await sendViaAPI({ to, subject, html, text });
 
-    /* -------- TRY SMTP FIRST -------- */
-    const info = await transporter.sendMail(mailOptions);
+    if (apiSuccess) return true;
 
-    console.log("✅ Email sent via SMTP");
-    console.log("📌 Message ID:", info.messageId);
-
-    return true;
+    /* 🔁 STEP 2: FALLBACK SMTP */
+    return await sendViaSMTP(mailOptions);
 
   } catch (error) {
-    console.error("❌ SMTP failed:", error.message);
-
-    if (error.code === "ETIMEDOUT" || error.code === "ESOCKET") {
-      console.log("⚠ Switching to Brevo API fallback...");
-      return await sendViaAPI({ to, subject, html, text });
-    }
-
+    console.error("❌ Final email error:", error.message);
     return false;
   }
 };
