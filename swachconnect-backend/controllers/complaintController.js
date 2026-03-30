@@ -53,6 +53,23 @@ exports.createComplaint = async (req, res) => {
       isAnonymous === 1 ||
       isAnonymous === "1";
 
+    exports.createComplaint = async (req, res) => {
+  try {
+    const user = req.user;
+    const { description, lat, lng, isAnonymous } = req.body;
+
+    if (!description || description.trim().length < 5) {
+      return res.status(400).json({
+        message: "Invalid complaint description"
+      });
+    }
+
+    const anonymous =
+      isAnonymous === true ||
+      isAnonymous === "true" ||
+      isAnonymous === 1 ||
+      isAnonymous === "1";
+
     const latitude =
       lat !== undefined && lat !== "" && !isNaN(lat)
         ? Number(lat)
@@ -98,6 +115,7 @@ exports.createComplaint = async (req, res) => {
     const emailActionToken = crypto.randomBytes(32).toString("hex");
     const emailActionExpires = Date.now() + 2 * 60 * 60 * 1000;
 
+    // ✅ SAVE FIRST (IMPORTANT)
     const complaint = await Complaint.create({
       userId: user._id,
       reporterName: anonymous ? null : user.name,
@@ -118,13 +136,24 @@ exports.createComplaint = async (req, res) => {
       emailActionExpires
     });
 
+    console.log("✅ Complaint saved:", complaint._id);
+
+    // ✅ EMAIL (SAFE - WILL NOT BREAK API)
     try {
       await sendEmail({
         to: complaint.reporterEmail,
         subject: "Complaint Registered – SwachConnect",
-        html: `<h2>Complaint Registered</h2>`
+        html: `<h2>Complaint Registered</h2>
+               <p>Your complaint has been successfully submitted.</p>
+               <p><strong>ID:</strong> ${complaint._id}</p>`
       });
-    } catch {}
+
+      console.log("📧 Email sent successfully");
+
+    } catch (emailError) {
+      console.log("⚠ Email failed but complaint saved");
+      console.log("Email error:", emailError.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -133,6 +162,8 @@ exports.createComplaint = async (req, res) => {
     });
 
   } catch (err) {
+    console.error("❌ Complaint error:", err);
+
     res.status(500).json({
       message: "Complaint submission failed"
     });

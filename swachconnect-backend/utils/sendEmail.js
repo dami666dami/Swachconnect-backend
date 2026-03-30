@@ -14,21 +14,25 @@ if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp-relay.brevo.com",
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false, // IMPORTANT: false for port 587
+
+  // 🔥 Try 465 first (better for Render)
+  port: Number(process.env.SMTP_PORT) || 465,
+  secure: true, // ✅ TRUE for port 465
 
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },
 
+  // 🔥 IMPORTANT FIXES FOR RENDER
+  requireTLS: true,
   tls: {
-    rejectUnauthorized: false // avoids TLS issues on Render
+    rejectUnauthorized: false
   },
 
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-  socketTimeout: 30000
+  connectionTimeout: 60000, // increased
+  greetingTimeout: 60000,
+  socketTimeout: 60000
 });
 
 /* --------------------------------------------------
@@ -66,7 +70,7 @@ const sendEmail = async ({
     /* -------- EMAIL OPTIONS -------- */
 
     const mailOptions = {
-      from: `"SwachConnect Support" <swachconnect@gmail.com>`, // MUST match verified sender
+      from: `"SwachConnect Support" <swachconnect@gmail.com>`, // must be verified in Brevo
       to,
       subject,
 
@@ -87,6 +91,8 @@ const sendEmail = async ({
 
     /* -------- SEND EMAIL -------- */
 
+    console.log("📤 Sending email to:", to);
+
     const info = await transporter.sendMail(mailOptions);
 
     console.log("✅ Email sent successfully");
@@ -96,8 +102,15 @@ const sendEmail = async ({
     return true;
 
   } catch (error) {
+
+    // 🔥 IMPORTANT: DO NOT CRASH SYSTEM
     console.error("❌ Email sending failed");
-    console.error("🔍 Full error:", error);
+    console.error("🔍 Full error:", error.message || error);
+
+    // 🔥 fallback log
+    if (error.code === "ETIMEDOUT") {
+      console.error("⚠ SMTP timeout - possible Render network restriction");
+    }
 
     return false;
   }
