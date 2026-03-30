@@ -153,8 +153,15 @@ const sendEmail = async ({
       mailOptions.replyTo = replyTo;
     }
 
-    /* 🔥 STEP 1: TRY GMAIL (shows in your phone) */
-    const gmailSuccess = await sendViaGmail(mailOptions);
+   const gmailSuccess = await Promise.race([
+  sendViaGmail(mailOptions),
+  new Promise((resolve) =>
+    setTimeout(() => {
+      console.log("⏱ Gmail timeout, switching...");
+      resolve(false);
+    }, 5000) // 5 seconds max
+  )
+]);
 
     if (gmailSuccess) return true;
 
