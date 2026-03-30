@@ -13,13 +13,17 @@ if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
 ---------------------------------------------------*/
 
 const transporter = nodemailer.createTransport({
-  host: "smtp-relay.brevo.com",
-  port: 587,
-  secure: false,
+  host: process.env.SMTP_HOST || "smtp-relay.brevo.com",
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: false, // IMPORTANT: false for port 587
 
   auth: {
-    user: process.env.EMAIL_USER, // Brevo login
-    pass: process.env.EMAIL_PASS  // Brevo SMTP key
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  },
+
+  tls: {
+    rejectUnauthorized: false // avoids TLS issues on Render
   },
 
   connectionTimeout: 30000,
@@ -28,14 +32,14 @@ const transporter = nodemailer.createTransport({
 });
 
 /* --------------------------------------------------
-   Verify SMTP connection
+   Verify SMTP connection (runs once)
 ---------------------------------------------------*/
 
-transporter.verify((error, success) => {
+transporter.verify((error) => {
   if (error) {
     console.error("❌ SMTP connection failed:", error.message);
   } else {
-    console.log("📧 SMTP server ready");
+    console.log("📧 SMTP server is ready to send emails");
   }
 });
 
@@ -52,14 +56,17 @@ const sendEmail = async ({
   replyTo = null
 }) => {
   try {
+    /* -------- VALIDATION -------- */
 
     if (!to || !subject) {
-      console.error("❌ Missing email 'to' or 'subject'");
+      console.error("❌ Missing 'to' or 'subject'");
       return false;
     }
 
+    /* -------- EMAIL OPTIONS -------- */
+
     const mailOptions = {
-      from: `"SwachConnect" <swachconnect@gmail.com>`, // sender Gmail
+      from: `"SwachConnect Support" <swachconnect@gmail.com>`, // MUST match verified sender
       to,
       subject,
 
@@ -78,18 +85,19 @@ const sendEmail = async ({
       mailOptions.replyTo = replyTo;
     }
 
+    /* -------- SEND EMAIL -------- */
+
     const info = await transporter.sendMail(mailOptions);
 
-    console.log("📧 Email sent successfully");
+    console.log("✅ Email sent successfully");
     console.log("📨 To:", to);
     console.log("📌 Message ID:", info.messageId);
 
     return true;
 
   } catch (error) {
-
     console.error("❌ Email sending failed");
-    console.error("Reason:", error.message);
+    console.error("🔍 Full error:", error);
 
     return false;
   }

@@ -11,6 +11,7 @@ import 'config.dart';
 import 'otp_page.dart';
 import 'register_complaint_page.dart';
 import 'complaint_history_page.dart';
+import 'feedback_page.dart';
 
 /// Global notifier to rebuild entire app when language changes
 ValueNotifier<int> languageNotifier = ValueNotifier(0);
@@ -29,27 +30,32 @@ void main() async {
 
 class AppColors {
   // Earthy, rich greens — premium civic feel
-  static const forest       = Color(0xFF1A3C2A);   // deep forest anchor
-  static const pine         = Color(0xFF2D5A3D);   // primary brand
-  static const moss         = Color(0xFF3E7A53);   // interactive elements
-  static const sage         = Color(0xFF6BAB7E);   // accent / highlights
-  static const mist         = Color(0xFFB8D9C2);   // soft border
-  static const dew          = Color(0xFFE8F4EC);   // lightest surface tint
+  static const forest       = Color(0xFF1A3C2A);
+  static const pine         = Color(0xFF2D5A3D);
+  static const moss         = Color(0xFF3E7A53);
+  static const sage         = Color(0xFF6BAB7E);
+  static const mist         = Color(0xFFB8D9C2);
+  static const dew          = Color(0xFFE8F4EC);
 
-  // Warm neutrals — gives a premium editorial feel
-  static const ink          = Color(0xFF0F1F15);   // text on white
-  static const charcoal     = Color(0xFF2C3E30);   // headings
-  static const slate        = Color(0xFF5A7262);   // body text
-  static const ash          = Color(0xFF94A89C);   // muted / hints
-  static const cloud        = Color(0xFFF4F7F5);   // page background
-  static const paper        = Color(0xFFFFFFFF);   // cards
+  // Warm neutrals
+  static const ink          = Color(0xFF0F1F15);
+  static const charcoal     = Color(0xFF2C3E30);
+  static const slate        = Color(0xFF5A7262);
+  static const ash          = Color(0xFF94A89C);
+  static const cloud        = Color(0xFFF4F7F5);
+  static const paper        = Color(0xFFFFFFFF);
 
-  // Gold accent — civic prestige
+  // Gold accent
   static const gold         = Color(0xFFD4A843);
   static const goldLight    = Color(0xFFF5E4B0);
 
   // Status
   static const errorRed     = Color(0xFFD63031);
+
+  // Purple for Feedback card
+  static const feedbackPurple      = Color(0xFF4A148C);
+  static const feedbackPurpleLight = Color(0xFF7B1FA2);
+  static const feedbackBadge       = Color(0xFFCE93D8);
 
   // Gradients
   static const primaryGrad  = LinearGradient(
@@ -73,10 +79,14 @@ class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+  static const feedbackGrad = LinearGradient(
+    colors: [feedbackPurple, feedbackPurpleLight],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }
 
 class AppTypography {
-  // Display — Playfair-feel weight contrast
   static const hero = TextStyle(
     fontSize: 38, fontWeight: FontWeight.w900,
     color: AppColors.charcoal, letterSpacing: -1.2,
@@ -150,7 +160,9 @@ class SwachConnectLogo extends StatelessWidget {
                 style: TextStyle(
                   fontSize: size * 0.28,
                   fontWeight: FontWeight.w400,
-                  color: lightText ? Colors.white.withValues(alpha: 0.75) : AppColors.sage,
+                  color: lightText
+                      ? Colors.white.withValues(alpha: 0.75)
+                      : AppColors.sage,
                   letterSpacing: 1.2,
                   height: 1.0,
                 ),
@@ -172,9 +184,7 @@ class _LogoMark extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      child: CustomPaint(
-        painter: _LogoPainter(),
-      ),
+      child: CustomPaint(painter: _LogoPainter()),
     );
   }
 }
@@ -182,12 +192,11 @@ class _LogoMark extends StatelessWidget {
 class _LogoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
+    final w  = size.width;
+    final h  = size.height;
     final cx = w / 2;
     final cy = h / 2;
 
-    // --- Hexagonal container (rotated 30°) ---
     final bgPaint = Paint()
       ..shader = const LinearGradient(
         colors: [AppColors.forest, AppColors.moss],
@@ -200,13 +209,15 @@ class _LogoPainter extends CustomPainter {
       final angle = (math.pi / 180) * (60 * i - 30);
       final px = cx + (w * 0.48) * math.cos(angle);
       final py = cy + (h * 0.48) * math.sin(angle);
-      if (i == 0) hexPath.moveTo(px, py);
-      else hexPath.lineTo(px, py);
+      if (i == 0) {
+        hexPath.moveTo(px, py);
+      } else {
+        hexPath.lineTo(px, py);
+      }
     }
     hexPath.close();
     canvas.drawPath(hexPath, bgPaint);
 
-    // --- Inner leaf / water-drop accent (gold) ---
     final goldPaint = Paint()
       ..color = AppColors.gold.withValues(alpha: 0.30)
       ..style = PaintingStyle.fill;
@@ -225,41 +236,34 @@ class _LogoPainter extends CustomPainter {
     );
     canvas.drawPath(goldPath, goldPaint);
 
-    // --- Recycling / connectivity arcs (white) ---
     final arcPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.90)
       ..strokeWidth = w * 0.07
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
-    // Three circular arcs representing connection + cleanliness
     final arcR = w * 0.26;
-    // Top arc
     canvas.drawArc(
       Rect.fromCircle(center: Offset(cx, cy - h * 0.06), radius: arcR),
       -math.pi * 1.1, math.pi * 0.9, false, arcPaint,
     );
-    // Bottom-left arc
     final blCenter = Offset(cx - w * 0.20, cy + h * 0.10);
     canvas.drawArc(
       Rect.fromCircle(center: blCenter, radius: arcR),
       math.pi * 0.55, math.pi * 0.9, false, arcPaint,
     );
-    // Bottom-right arc
     final brCenter = Offset(cx + w * 0.20, cy + h * 0.10);
     canvas.drawArc(
       Rect.fromCircle(center: brCenter, radius: arcR),
       -math.pi * 0.15, math.pi * 0.9, false, arcPaint,
     );
 
-    // --- Center dot (white) ---
     canvas.drawCircle(
       Offset(cx, cy),
       w * 0.06,
       Paint()..color = Colors.white,
     );
 
-    // --- Gold ring border on hex ---
     final borderPaint = Paint()
       ..color = AppColors.gold.withValues(alpha: 0.5)
       ..strokeWidth = w * 0.025
@@ -287,7 +291,7 @@ class SwachConnectApp extends StatelessWidget {
           theme: ThemeData(
             useMaterial3: true,
             scaffoldBackgroundColor: AppColors.cloud,
-            fontFamily: 'Nunito', // Premium rounded sans
+            fontFamily: 'Nunito',
             colorScheme: ColorScheme.fromSeed(
               seedColor: AppColors.pine,
               primary: AppColors.pine,
@@ -374,8 +378,8 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _scaleAnim;
   late Animation<double> _pulseAnim;
 
-  String displayText = "SwachConnect";
-  bool showTypewriter = true;
+  String displayText    = "SwachConnect";
+  bool   showTypewriter = true;
 
   final List<String> languages = [
     "സ്വച്‌കണക്റ്റ്",
@@ -390,12 +394,12 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _fadeCtrl  = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
     _scaleCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
     _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))
       ..repeat(reverse: true);
 
-    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+    _fadeAnim  = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _scaleAnim = Tween<double>(begin: 0.7, end: 1.0).animate(
       CurvedAnimation(parent: _scaleCtrl, curve: Curves.elasticOut),
     );
@@ -454,46 +458,36 @@ class _SplashScreenState extends State<SplashScreen>
       backgroundColor: AppColors.paper,
       body: Stack(
         children: [
-          // Background decorative circles
           Positioned(
             right: -size.width * 0.25,
-            top: -size.width * 0.25,
+            top:   -size.width * 0.25,
             child: Container(
-              width: size.width * 0.75,
-              height: size.width * 0.75,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.dew,
-              ),
+              width: size.width * 0.75, height: size.width * 0.75,
+              decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.dew),
             ),
           ),
           Positioned(
-            left: -size.width * 0.30,
+            left:   -size.width * 0.30,
             bottom: size.height * 0.10,
             child: Container(
-              width: size.width * 0.70,
-              height: size.width * 0.70,
+              width: size.width * 0.70, height: size.width * 0.70,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: AppColors.dew.withValues(alpha: 0.6),
               ),
             ),
           ),
-          // Gold dot accent
           Positioned(
-            right: size.width * 0.15,
+            right:  size.width * 0.15,
             bottom: size.height * 0.28,
             child: Container(
               width: 10, height: 10,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.gold,
-              ),
+              decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.gold),
             ),
           ),
           Positioned(
             left: size.width * 0.10,
-            top: size.height * 0.20,
+            top:  size.height * 0.20,
             child: Container(
               width: 6, height: 6,
               decoration: BoxDecoration(
@@ -503,21 +497,18 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
 
-          // Main content
           FadeTransition(
             opacity: _fadeAnim,
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Animated logo mark
                   ScaleTransition(
                     scale: _scaleAnim,
                     child: AnimatedBuilder(
                       animation: _pulseAnim,
                       builder: (_, child) => Transform.scale(
-                        scale: _pulseAnim.value,
-                        child: child,
+                        scale: _pulseAnim.value, child: child,
                       ),
                       child: const SwachConnectLogo(size: 80, showText: false),
                     ),
@@ -525,7 +516,6 @@ class _SplashScreenState extends State<SplashScreen>
 
                   const SizedBox(height: 32),
 
-                  // Brand name
                   showTypewriter
                       ? AnimatedTextKit(
                     totalRepeatCount: 1,
@@ -533,17 +523,14 @@ class _SplashScreenState extends State<SplashScreen>
                       TypewriterAnimatedText(
                         'SwachConnect',
                         speed: const Duration(milliseconds: 100),
-                        textStyle: AppTypography.hero.copyWith(
-                          color: AppColors.forest,
-                        ),
+                        textStyle: AppTypography.hero.copyWith(color: AppColors.forest),
                       ),
                     ],
                   )
                       : AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
-                    transitionBuilder: (child, anim) => FadeTransition(
-                      opacity: anim, child: child,
-                    ),
+                    transitionBuilder: (child, anim) =>
+                        FadeTransition(opacity: anim, child: child),
                     child: Text(
                       displayText,
                       key: ValueKey(displayText),
@@ -553,7 +540,6 @@ class _SplashScreenState extends State<SplashScreen>
 
                   const SizedBox(height: 10),
 
-                  // Tagline with gold underline
                   Column(
                     children: [
                       Text(
@@ -575,7 +561,6 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
 
-          // Bottom badge
           Positioned(
             bottom: 40, left: 0, right: 0,
             child: FadeTransition(
@@ -596,15 +581,11 @@ class _SplashScreenState extends State<SplashScreen>
                         Container(
                           width: 6, height: 6,
                           decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.sage,
+                            shape: BoxShape.circle, color: AppColors.sage,
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          "CIVIC TECH FOR INDIA",
-                          style: AppTypography.caption,
-                        ),
+                        Text("CIVIC TECH FOR INDIA", style: AppTypography.caption),
                       ],
                     ),
                   ),
@@ -623,27 +604,38 @@ class _SplashScreenState extends State<SplashScreen>
 class _AuthHeader extends StatelessWidget {
   final String title;
   final String subtitle;
+
   const _AuthHeader({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SwachConnectLogo(size: 38),
         const SizedBox(height: 36),
-        // Thin accent rule
         Row(
+          mainAxisSize: MainAxisSize.max,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(width: 3, height: 28, color: AppColors.pine,
-                margin: const EdgeInsets.only(right: 12)),
+            Container(
+              width: 3, height: 28,
+              color: AppColors.pine,
+              margin: const EdgeInsets.only(right: 12),
+            ),
             Expanded(
-              child: Text(title, style: AppTypography.display),
+              child: Text(
+                title,
+                style: AppTypography.display,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
         const SizedBox(height: 8),
-        Text(subtitle, style: AppTypography.body),
+        Text(subtitle, style: AppTypography.body, maxLines: 2, overflow: TextOverflow.ellipsis),
         const SizedBox(height: 32),
       ],
     );
@@ -700,7 +692,9 @@ class _PrimaryButton extends StatelessWidget {
                 ? const LinearGradient(colors: [AppColors.mist, AppColors.mist])
                 : AppColors.cardGrad,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: loading ? null : [
+            boxShadow: loading
+                ? null
+                : [
               BoxShadow(
                 color: AppColors.pine.withValues(alpha: 0.30),
                 blurRadius: 16, offset: const Offset(0, 6),
@@ -752,9 +746,9 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final email = TextEditingController();
+  final email    = TextEditingController();
   final password = TextEditingController();
-  bool hide = true;
+  bool hide    = true;
   bool loading = false;
 
   @override
@@ -772,23 +766,24 @@ class _LoginPageState extends State<LoginPage> {
         Uri.parse("${AppConfig.backendBase}/api/auth/login"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          "email": email.text.trim(),
+          "email":    email.text.trim(),
           "password": password.text.trim(),
         }),
       );
       if (!mounted) return;
       setState(() => loading = false);
       if (res.statusCode == 200) {
-        final body = jsonDecode(res.body);
+        final body  = jsonDecode(res.body);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(AppConfig.tokenKey, body["token"]);
-        await prefs.setString(AppConfig.nameKey, body["user"]["name"]);
+        await prefs.setString(AppConfig.nameKey,  body["user"]["name"]);
         if (!mounted) return;
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
             pageBuilder: (_, __, ___) => const HomePage(),
-            transitionsBuilder: (_, a, __, child) => FadeTransition(opacity: a, child: child),
+            transitionsBuilder: (_, a, __, child) =>
+                FadeTransition(opacity: a, child: child),
           ),
         );
       } else {
@@ -818,7 +813,6 @@ class _LoginPageState extends State<LoginPage> {
                   subtitle: "Welcome back — sign in to continue.",
                 ),
 
-                // Email field
                 _FieldLabel(label: AppText.t("email")),
                 TextFormField(
                   controller: email,
@@ -826,7 +820,7 @@ class _LoginPageState extends State<LoginPage> {
                   decoration: InputDecoration(
                     hintText: "you@example.com",
                     hintStyle: AppTypography.body.copyWith(color: AppColors.ash),
-                    prefixIcon: _FieldIcon(icon: Icons.mail_outline_rounded),
+                    prefixIcon: const _FieldIcon(icon: Icons.mail_outline_rounded),
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return AppText.t("enterEmail");
@@ -837,7 +831,6 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 20),
 
-                // Password field
                 _FieldLabel(label: AppText.t("password")),
                 TextFormField(
                   controller: password,
@@ -845,7 +838,7 @@ class _LoginPageState extends State<LoginPage> {
                   decoration: InputDecoration(
                     hintText: "••••••••",
                     hintStyle: AppTypography.body.copyWith(color: AppColors.ash),
-                    prefixIcon: _FieldIcon(icon: Icons.lock_outline_rounded),
+                    prefixIcon: const _FieldIcon(icon: Icons.lock_outline_rounded),
                     suffixIcon: IconButton(
                       icon: Icon(
                         hide ? Icons.visibility_off_outlined : Icons.visibility_outlined,
@@ -854,10 +847,10 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: () => setState(() => hide = !hide),
                     ),
                   ),
-                  validator: (v) => v == null || v.isEmpty ? AppText.t("enterPassword") : null,
+                  validator: (v) =>
+                  v == null || v.isEmpty ? AppText.t("enterPassword") : null,
                 ),
 
-                // Forgot password
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -880,29 +873,23 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 4),
 
-                _PrimaryButton(
-                  label: AppText.t("login"),
-                  loading: loading,
-                  onTap: login,
-                ),
+                _PrimaryButton(label: AppText.t("login"), loading: loading, onTap: login),
 
                 const SizedBox(height: 28),
 
-                // Divider
                 Row(
                   children: [
-                    Expanded(child: Divider(color: AppColors.mist)),
+                    const Expanded(child: Divider(color: AppColors.mist)),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text("or", style: AppTypography.body.copyWith(fontSize: 13)),
                     ),
-                    Expanded(child: Divider(color: AppColors.mist)),
+                    const Expanded(child: Divider(color: AppColors.mist)),
                   ],
                 ),
 
                 const SizedBox(height: 24),
 
-                // Register CTA
                 _AuthFooterCta(
                   question: "Don't have an account?",
                   action: AppText.t("register"),
@@ -929,10 +916,10 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  final _formKey = GlobalKey<FormState>();
-  final name = TextEditingController();
-  final email = TextEditingController();
-  final password = TextEditingController();
+  final _formKey        = GlobalKey<FormState>();
+  final name            = TextEditingController();
+  final email           = TextEditingController();
+  final password        = TextEditingController();
   final confirmPassword = TextEditingController();
   bool hide1 = true, hide2 = true, loading = false;
 
@@ -951,18 +938,18 @@ class _RegisterPageState extends State<RegisterPage> {
         Uri.parse("${AppConfig.backendBase}/api/auth/register"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          "name": name.text.trim(),
-          "email": email.text.trim(),
+          "name":     name.text.trim(),
+          "email":    email.text.trim(),
           "password": password.text.trim(),
         }),
       );
       if (!mounted) return;
       setState(() => loading = false);
       if (res.statusCode == 200 || res.statusCode == 201) {
-        final body = jsonDecode(res.body);
+        final body  = jsonDecode(res.body);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(AppConfig.tokenKey, body["token"]);
-        await prefs.setString(AppConfig.nameKey, body["user"]["name"]);
+        await prefs.setString(AppConfig.nameKey,  body["user"]["name"]);
         if (!mounted) return;
         Navigator.pushAndRemoveUntil(
           context,
@@ -972,7 +959,11 @@ class _RegisterPageState extends State<RegisterPage> {
       } else {
         try {
           final data = jsonDecode(res.body);
-          _showSnack(context, data["message"] ?? AppText.t("registrationFailed"), isError: true);
+          _showSnack(
+            context,
+            data["message"] ?? AppText.t("registrationFailed"),
+            isError: true,
+          );
         } catch (_) {
           _showSnack(context, AppText.t("registrationFailed"), isError: true);
         }
@@ -1011,9 +1002,10 @@ class _RegisterPageState extends State<RegisterPage> {
                 decoration: InputDecoration(
                   hintText: "Your full name",
                   hintStyle: AppTypography.body.copyWith(color: AppColors.ash),
-                  prefixIcon: _FieldIcon(icon: Icons.person_outline_rounded),
+                  prefixIcon: const _FieldIcon(icon: Icons.person_outline_rounded),
                 ),
-                validator: (v) => v == null || v.isEmpty ? AppText.t("enterName") : null,
+                validator: (v) =>
+                v == null || v.isEmpty ? AppText.t("enterName") : null,
               ),
 
               const SizedBox(height: 20),
@@ -1025,7 +1017,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 decoration: InputDecoration(
                   hintText: "you@example.com",
                   hintStyle: AppTypography.body.copyWith(color: AppColors.ash),
-                  prefixIcon: _FieldIcon(icon: Icons.mail_outline_rounded),
+                  prefixIcon: const _FieldIcon(icon: Icons.mail_outline_rounded),
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty) return AppText.t("enterEmail");
@@ -1043,7 +1035,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 decoration: InputDecoration(
                   hintText: "Min. 6 characters",
                   hintStyle: AppTypography.body.copyWith(color: AppColors.ash),
-                  prefixIcon: _FieldIcon(icon: Icons.lock_outline_rounded),
+                  prefixIcon: const _FieldIcon(icon: Icons.lock_outline_rounded),
                   suffixIcon: IconButton(
                     icon: Icon(
                       hide1 ? Icons.visibility_off_outlined : Icons.visibility_outlined,
@@ -1052,7 +1044,8 @@ class _RegisterPageState extends State<RegisterPage> {
                     onPressed: () => setState(() => hide1 = !hide1),
                   ),
                 ),
-                validator: (v) => v != null && v.length < 6 ? AppText.t("passwordMin") : null,
+                validator: (v) =>
+                v != null && v.length < 6 ? AppText.t("passwordMin") : null,
               ),
 
               const SizedBox(height: 20),
@@ -1064,7 +1057,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 decoration: InputDecoration(
                   hintText: "Re-enter password",
                   hintStyle: AppTypography.body.copyWith(color: AppColors.ash),
-                  prefixIcon: _FieldIcon(icon: Icons.lock_outline_rounded),
+                  prefixIcon: const _FieldIcon(icon: Icons.lock_outline_rounded),
                   suffixIcon: IconButton(
                     icon: Icon(
                       hide2 ? Icons.visibility_off_outlined : Icons.visibility_outlined,
@@ -1073,7 +1066,8 @@ class _RegisterPageState extends State<RegisterPage> {
                     onPressed: () => setState(() => hide2 = !hide2),
                   ),
                 ),
-                validator: (v) => v != password.text ? AppText.t("passwordMismatch") : null,
+                validator: (v) =>
+                v != password.text ? AppText.t("passwordMismatch") : null,
               ),
 
               const SizedBox(height: 32),
@@ -1119,7 +1113,9 @@ class ForgotPasswordPage extends StatelessWidget {
       if (!context.mounted) return;
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => OTPPage(email: emailCtrl.text.trim())),
+        MaterialPageRoute(
+          builder: (_) => OTPPage(email: emailCtrl.text.trim()),
+        ),
       );
     }
 
@@ -1135,7 +1131,6 @@ class ForgotPasswordPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Info card
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -1143,14 +1138,19 @@ class ForgotPasswordPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.mist),
               ),
-              child: Row(
+              child: const Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded, color: AppColors.sage, size: 20),
-                  const SizedBox(width: 12),
+                  Icon(Icons.info_outline_rounded, color: AppColors.sage, size: 20),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       "We'll send a one-time password to your registered email address.",
-                      style: AppTypography.body.copyWith(fontSize: 13),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.slate,
+                        height: 1.6,
+                      ),
                     ),
                   ),
                 ],
@@ -1166,7 +1166,7 @@ class ForgotPasswordPage extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: "you@example.com",
                 hintStyle: AppTypography.body.copyWith(color: AppColors.ash),
-                prefixIcon: _FieldIcon(icon: Icons.mail_outline_rounded),
+                prefixIcon: const _FieldIcon(icon: Icons.mail_outline_rounded),
               ),
             ),
 
@@ -1196,10 +1196,11 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final PageController _pageCtrl = PageController();
   Timer? _timer;
-  int _slideIndex = 0;
-  String name = "User";
+  int    _slideIndex = 0;
+  String name        = "User";
+
   late AnimationController _entryCtrl;
-  late Animation<double> _entryAnim;
+  late Animation<double>   _entryAnim;
 
   final slides = [
     "assets/slideshow/slide1.png",
@@ -1207,18 +1208,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     "assets/slideshow/slide3.png",
   ];
 
-  // Stat counters
   final stats = [
-    {"label": "Reports Filed", "count": "12.4K", "icon": Icons.assignment_turned_in_outlined},
-    {"label": "Cities Active", "count": "38", "icon": Icons.location_city_outlined},
-    {"label": "Issues Resolved", "count": "9.1K", "icon": Icons.check_circle_outline_rounded},
+    {"label": "Reports Filed",   "count": "0", "icon": Icons.assignment_turned_in_outlined},
+    {"label": "Cities Active",   "count": "5",    "icon": Icons.location_city_outlined},
+    {"label": "Issues Resolved", "count": "0",  "icon": Icons.check_circle_outline_rounded},
   ];
 
   @override
   void initState() {
     super.initState();
     _loadName();
-    _entryCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _entryCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 700));
     _entryAnim = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
     _entryCtrl.forward();
     _timer = Timer.periodic(const Duration(seconds: 4), (_) {
@@ -1245,7 +1246,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       context,
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => const LoginPage(),
-        transitionsBuilder: (_, a, __, child) => FadeTransition(opacity: a, child: child),
+        transitionsBuilder: (_, a, __, child) =>
+            FadeTransition(opacity: a, child: child),
       ),
           (_) => false,
     );
@@ -1262,8 +1264,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final firstName = name.split(" ").first;
-    final topPad = MediaQuery.of(context).padding.top;
-    final screenH = MediaQuery.of(context).size.height;
+    final topPad    = MediaQuery.of(context).padding.top;
+    final screenH   = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: AppColors.cloud,
@@ -1280,7 +1282,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Slides
                     PageView.builder(
                       controller: _pageCtrl,
                       itemCount: slides.length,
@@ -1289,17 +1290,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           Image.asset(slides[i], fit: BoxFit.cover),
                     ),
 
-                    // Gradient overlay
-                    Container(
-                      decoration: const BoxDecoration(gradient: AppColors.heroGrad),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(gradient: AppColors.heroGrad),
                     ),
 
-                    // Bottom vignette into background
                     Positioned(
                       bottom: 0, left: 0, right: 0,
                       height: 60,
-                      child: Container(
-                        decoration: BoxDecoration(
+                      child: DecoratedBox(
+                        decoration: const BoxDecoration(
                           gradient: LinearGradient(
                             colors: [Colors.transparent, AppColors.cloud],
                             begin: Alignment.topCenter,
@@ -1309,22 +1308,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       ),
                     ),
 
-                    // Header
                     Positioned(
                       top: topPad + 14,
                       left: 20, right: 20,
                       child: Row(
                         children: [
-                          Expanded(
+                          const Expanded(
                             child: SwachConnectLogo(
                               size: 36, showText: true, lightText: true,
                             ),
                           ),
-                          // Language
                           _GlassIconBtn(
                             child: PopupMenuButton<String>(
-                              icon: const Icon(Icons.language_rounded, color: Colors.white, size: 19),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              icon: const Icon(Icons.language_rounded,
+                                  color: Colors.white, size: 19),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
                               onSelected: (v) async {
                                 await AppText.setLanguage(v);
                                 languageNotifier.value++;
@@ -1341,31 +1340,39 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                           ),
                           const SizedBox(width: 10),
-                          // Profile
                           _GlassIconBtn(
                             child: PopupMenuButton<String>(
                               icon: CircleAvatar(
                                 radius: 14,
-                                backgroundColor: Colors.white.withValues(alpha: 0.25),
+                                backgroundColor:
+                                Colors.white.withValues(alpha: 0.25),
                                 child: Text(
-                                  firstName.isNotEmpty ? firstName[0].toUpperCase() : "U",
+                                  firstName.isNotEmpty
+                                      ? firstName[0].toUpperCase()
+                                      : "U",
                                   style: const TextStyle(
                                     color: Colors.white, fontSize: 13,
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
                               ),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              onSelected: (v) { if (v == "logout") _logout(); },
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
+                              onSelected: (v) {
+                                if (v == "logout") { _logout(); }
+                              },
                               itemBuilder: (_) => [
                                 PopupMenuItem(
                                   enabled: false,
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(name, style: AppTypography.title.copyWith(fontSize: 15)),
+                                      Text(name,
+                                          style: AppTypography.title
+                                              .copyWith(fontSize: 15)),
                                       const SizedBox(height: 2),
-                                      Text("Citizen Member", style: AppTypography.caption),
+                                      Text("Citizen Member",
+                                          style: AppTypography.caption),
                                     ],
                                   ),
                                 ),
@@ -1374,10 +1381,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   value: "logout",
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.logout_rounded, size: 16, color: AppColors.errorRed),
+                                      const Icon(Icons.logout_rounded,
+                                          size: 16, color: AppColors.errorRed),
                                       const SizedBox(width: 10),
                                       Text(AppText.t("logout"),
-                                          style: const TextStyle(color: AppColors.errorRed)),
+                                          style: const TextStyle(
+                                              color: AppColors.errorRed)),
                                     ],
                                   ),
                                 ),
@@ -1388,7 +1397,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       ),
                     ),
 
-                    // Bottom: greeting + dots
                     Positioned(
                       bottom: 24, left: 20, right: 20,
                       child: Row(
@@ -1404,7 +1412,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                     color: Colors.white,
                                     fontSize: 22, fontWeight: FontWeight.w800,
                                     letterSpacing: -0.5,
-                                    shadows: [Shadow(color: Colors.black45, blurRadius: 8)],
+                                    shadows: [
+                                      Shadow(color: Colors.black45, blurRadius: 8)
+                                    ],
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -1418,20 +1428,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               ],
                             ),
                           ),
-                          // Slide dots
                           Column(
                             mainAxisSize: MainAxisSize.min,
-                            children: List.generate(slides.length, (i) =>
-                                AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  margin: const EdgeInsets.symmetric(vertical: 2),
-                                  width: 5,
-                                  height: i == _slideIndex ? 18 : 5,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: i == _slideIndex ? 1.0 : 0.4),
-                                    borderRadius: BorderRadius.circular(3),
-                                  ),
+                            children: List.generate(
+                              slides.length,
+                                  (i) => AnimatedContainer(
+                                duration: const Duration(milliseconds: 300),
+                                margin: const EdgeInsets.symmetric(vertical: 2),
+                                width: 5,
+                                height: i == _slideIndex ? 18 : 5,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(
+                                      alpha: i == _slideIndex ? 1.0 : 0.4),
+                                  borderRadius: BorderRadius.circular(3),
                                 ),
+                              ),
                             ),
                           ),
                         ],
@@ -1459,26 +1470,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   child: Row(
                     children: List.generate(stats.length * 2 - 1, (i) {
                       if (i.isOdd) {
-                        return Container(
-                          width: 1, height: 36,
-                          color: AppColors.mist,
-                        );
+                        return Container(width: 1, height: 36, color: AppColors.mist);
                       }
                       final stat = stats[i ~/ 2];
                       return Expanded(
                         child: Column(
                           children: [
-                            Icon(stat["icon"] as IconData, color: AppColors.sage, size: 18),
+                            Icon(stat["icon"] as IconData,
+                                color: AppColors.sage, size: 18),
                             const SizedBox(height: 4),
                             Text(
                               stat["count"] as String,
-                              style: AppTypography.title.copyWith(color: AppColors.forest),
+                              style: AppTypography.title
+                                  .copyWith(color: AppColors.forest),
                             ),
                             Text(
                               stat["label"] as String,
-                              style: AppTypography.caption.copyWith(
-                                fontSize: 10, letterSpacing: 0.5,
-                              ),
+                              style: AppTypography.caption
+                                  .copyWith(fontSize: 10, letterSpacing: 0.5),
                               textAlign: TextAlign.center,
                             ),
                           ],
@@ -1494,8 +1503,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 padding: const EdgeInsets.fromLTRB(20, 28, 20, 4),
                 child: Row(
                   children: [
-                    Container(width: 3, height: 18, color: AppColors.gold,
-                        margin: const EdgeInsets.only(right: 10)),
+                    Container(
+                      width: 3, height: 18,
+                      color: AppColors.gold,
+                      margin: const EdgeInsets.only(right: 10),
+                    ),
                     Text("QUICK ACTIONS", style: AppTypography.caption),
                   ],
                 ),
@@ -1512,27 +1524,50 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   children: [
                     _PremiumActionCard(
                       title: AppText.t("registerComplaint"),
-                      subtitle: "Capture, report, and track civic issues with photo evidence",
+                      subtitle:
+                      "Capture, report, and track civic issues with photo evidence",
                       icon: Icons.camera_alt_rounded,
                       gradient: AppColors.cardGrad,
                       badgeLabel: "REPORT NOW",
                       badgeColor: AppColors.gold,
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const RegisterComplaintPage()),
+                        MaterialPageRoute(
+                            builder: (_) => const RegisterComplaintPage()),
                       ),
                     ),
+
                     const SizedBox(height: 16),
+
                     _PremiumActionCard(
                       title: AppText.t("myComplaints"),
-                      subtitle: "View, track, and follow up on all your past submissions",
+                      subtitle:
+                      "View, track, and follow up on all your past submissions",
                       icon: Icons.history_rounded,
                       gradient: AppColors.tealGrad,
                       badgeLabel: "MY HISTORY",
                       badgeColor: AppColors.sage,
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const ComplaintHistoryPage()),
+                        MaterialPageRoute(
+                            builder: (_) => const ComplaintHistoryPage()),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    _PremiumActionCard(
+                      title: "Feedback",
+                      subtitle:
+                      "Rate your experience and help us build a better SwachConnect",
+                      icon: Icons.feedback_outlined,
+                      gradient: AppColors.feedbackGrad,
+                      badgeLabel: "SHARE NOW",
+                      badgeColor: AppColors.feedbackBadge,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const FeedbackPage()),
                       ),
                     ),
                   ],
@@ -1563,7 +1598,8 @@ class _GlassIconBtn extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.20), width: 1),
+        border: Border.all(
+            color: Colors.white.withValues(alpha: 0.20), width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.10),
@@ -1578,12 +1614,12 @@ class _GlassIconBtn extends StatelessWidget {
 
 /// Premium full-bleed action card with gradient, badge and arrow
 class _PremiumActionCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Gradient gradient;
-  final String badgeLabel;
-  final Color badgeColor;
+  final String    title;
+  final String    subtitle;
+  final IconData  icon;
+  final Gradient  gradient;
+  final String    badgeLabel;
+  final Color     badgeColor;
   final VoidCallback onTap;
 
   const _PremiumActionCard({
@@ -1621,7 +1657,6 @@ class _PremiumActionCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    // Icon circle
                     Container(
                       width: 50, height: 50,
                       decoration: BoxDecoration(
@@ -1633,12 +1668,10 @@ class _PremiumActionCard extends StatelessWidget {
                       ),
                       child: Icon(icon, color: Colors.white, size: 24),
                     ),
-
                     const Spacer(),
-
-                    // Badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: badgeColor.withValues(alpha: 0.20),
                         borderRadius: BorderRadius.circular(8),
@@ -1652,7 +1685,9 @@ class _PremiumActionCard extends StatelessWidget {
                           color: badgeColor == AppColors.gold
                               ? AppColors.goldLight
                               : Colors.white.withValues(alpha: 0.85),
-                          fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.2,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
                         ),
                       ),
                     ),
@@ -1664,8 +1699,8 @@ class _PremiumActionCard extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    color: Colors.white, fontSize: 19, fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
+                    color: Colors.white, fontSize: 19,
+                    fontWeight: FontWeight.w800, letterSpacing: -0.3,
                   ),
                 ),
 
@@ -1681,7 +1716,6 @@ class _PremiumActionCard extends StatelessWidget {
 
                 const SizedBox(height: 18),
 
-                // Bottom CTA row
                 Row(
                   children: [
                     Text(
@@ -1719,29 +1753,37 @@ class _InfoBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.mist),
       ),
-      child: Row(
+      child: const Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
+          DecoratedBox(
             decoration: BoxDecoration(
               color: AppColors.goldLight,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
-            child: const Icon(Icons.star_rounded, color: AppColors.gold, size: 22),
+            child: Padding(
+              padding: EdgeInsets.all(10),
+              child: Icon(Icons.star_rounded, color: AppColors.gold, size: 22),
+            ),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   "Your voice matters",
-                  style: AppTypography.title.copyWith(fontSize: 14),
+                  style: TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w700,
+                    color: AppColors.charcoal, letterSpacing: -0.2,
+                  ),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(
                   "Every complaint filed brings us closer to cleaner cities.",
-                  style: AppTypography.body.copyWith(fontSize: 12),
+                  style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w400,
+                    color: AppColors.slate, height: 1.6,
+                  ),
                 ),
               ],
             ),
@@ -1762,10 +1804,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        label.toUpperCase(),
-        style: AppTypography.caption,
-      ),
+      child: Text(label.toUpperCase(), style: AppTypography.caption),
     );
   }
 }
@@ -1792,7 +1831,8 @@ class _BackButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.mist),
         ),
-        child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: AppColors.charcoal),
+        child: const Icon(Icons.arrow_back_ios_new_rounded,
+            size: 16, color: AppColors.charcoal),
       ),
     );
   }
@@ -1802,7 +1842,12 @@ class _AuthFooterCta extends StatelessWidget {
   final String question;
   final String action;
   final VoidCallback onTap;
-  const _AuthFooterCta({required this.question, required this.action, required this.onTap});
+
+  const _AuthFooterCta({
+    required this.question,
+    required this.action,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
