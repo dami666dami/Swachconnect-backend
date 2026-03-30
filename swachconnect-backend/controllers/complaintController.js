@@ -53,23 +53,6 @@ exports.createComplaint = async (req, res) => {
       isAnonymous === 1 ||
       isAnonymous === "1";
 
-    exports.createComplaint = async (req, res) => {
-  try {
-    const user = req.user;
-    const { description, lat, lng, isAnonymous } = req.body;
-
-    if (!description || description.trim().length < 5) {
-      return res.status(400).json({
-        message: "Invalid complaint description"
-      });
-    }
-
-    const anonymous =
-      isAnonymous === true ||
-      isAnonymous === "true" ||
-      isAnonymous === 1 ||
-      isAnonymous === "1";
-
     const latitude =
       lat !== undefined && lat !== "" && !isNaN(lat)
         ? Number(lat)
@@ -115,7 +98,6 @@ exports.createComplaint = async (req, res) => {
     const emailActionToken = crypto.randomBytes(32).toString("hex");
     const emailActionExpires = Date.now() + 2 * 60 * 60 * 1000;
 
-    // ✅ SAVE FIRST (IMPORTANT)
     const complaint = await Complaint.create({
       userId: user._id,
       reporterName: anonymous ? null : user.name,
@@ -138,7 +120,6 @@ exports.createComplaint = async (req, res) => {
 
     console.log("✅ Complaint saved:", complaint._id);
 
-    // ✅ EMAIL (SAFE - WILL NOT BREAK API)
     try {
       await sendEmail({
         to: complaint.reporterEmail,
@@ -147,12 +128,9 @@ exports.createComplaint = async (req, res) => {
                <p>Your complaint has been successfully submitted.</p>
                <p><strong>ID:</strong> ${complaint._id}</p>`
       });
-
-      console.log("📧 Email sent successfully");
-
+      console.log("📧 Email sent");
     } catch (emailError) {
-      console.log("⚠ Email failed but complaint saved");
-      console.log("Email error:", emailError.message);
+      console.log("⚠ Email failed but complaint saved:", emailError.message);
     }
 
     res.status(201).json({
@@ -163,7 +141,6 @@ exports.createComplaint = async (req, res) => {
 
   } catch (err) {
     console.error("❌ Complaint error:", err);
-
     res.status(500).json({
       message: "Complaint submission failed"
     });
@@ -181,7 +158,7 @@ exports.getUserComplaints = async (req, res) => {
     }).sort({ createdAt: -1 });
 
     res.json(complaints);
-  } catch {
+  } catch (err) {
     res.status(500).json({
       message: "Failed to fetch complaints"
     });
@@ -199,7 +176,7 @@ exports.getAllComplaints = async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.json(complaints);
-  } catch {
+  } catch (err) {
     res.status(500).json({
       message: "Failed to fetch complaints"
     });
@@ -229,7 +206,7 @@ exports.deleteComplaint = async (req, res) => {
       message: "Complaint deleted successfully"
     });
 
-  } catch {
+  } catch (err) {
     res.status(500).json({
       message: "Delete failed"
     });
@@ -244,8 +221,9 @@ exports.escalateComplaint = async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id);
 
-    if (!complaint)
+    if (!complaint) {
       return res.status(404).json({ message: "Complaint not found" });
+    }
 
     complaint.escalationLevel += 1;
     complaint.assignedAuthority =
@@ -257,7 +235,7 @@ exports.escalateComplaint = async (req, res) => {
 
     res.json(complaint);
 
-  } catch {
+  } catch (err) {
     res.status(500).json({
       message: "Escalation failed"
     });
@@ -291,7 +269,7 @@ exports.emailEscalateComplaint = async (req, res) => {
 
     res.send("<h2>Complaint escalated successfully</h2>");
 
-  } catch {
+  } catch (err) {
     res.send("Escalation failed");
   }
 };
@@ -318,13 +296,13 @@ exports.emailWaitComplaint = async (req, res) => {
 
     res.send("<h2>You chose to wait</h2>");
 
-  } catch {
+  } catch (err) {
     res.send("Failed");
   }
 };
 
 /* --------------------------------------------------
-   ✅ FEEDBACK (FIXED WITHOUT REMOVING YOUR STYLE)
+   FEEDBACK
 ---------------------------------------------------*/
 
 exports.submitFeedback = async (req, res) => {
@@ -346,7 +324,6 @@ exports.submitFeedback = async (req, res) => {
       });
     }
 
-    // ✅ store in your existing fields ALSO
     complaint.feedbackGiven = true;
     complaint.feedbackRating = rating;
     complaint.feedbackMessage = comment;
@@ -366,7 +343,7 @@ exports.submitFeedback = async (req, res) => {
 };
 
 /* --------------------------------------------------
-   ✅ NEW: AUTHORITY REMARK (ADDED ONLY)
+   ADD REMARK
 ---------------------------------------------------*/
 
 exports.addRemark = async (req, res) => {
