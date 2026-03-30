@@ -22,7 +22,10 @@ const gmailTransporter = nodemailer.createTransport({
   auth: {
     user: "swachconnect@gmail.com",
     pass: process.env.EMAIL_PASS // Gmail App Password (no spaces)
-  }
+  },
+  connectionTimeout: 5000,
+  greetingTimeout: 5000,
+  socketTimeout: 5000
 });
 
 /* --------------------------------------------------
@@ -36,7 +39,7 @@ const transporter = nodemailer.createTransport({
 
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.BREVO_API_KEY // ✅ FIXED
+    pass: process.env.BREVO_API_KEY
   },
 
   tls: {
@@ -55,8 +58,8 @@ const transporter = nodemailer.createTransport({
 const sendViaGmail = async (mailOptions) => {
   try {
     console.log("📤 Sending via Gmail...");
-    await gmailTransporter.sendMail(mailOptions);
-    console.log("✅ Email sent via Gmail");
+    const info = await gmailTransporter.sendMail(mailOptions);
+    console.log("✅ Email sent via Gmail:", info.messageId);
     return true;
   } catch (error) {
     console.error("❌ Gmail failed:", error.message);
@@ -86,7 +89,7 @@ const sendViaAPI = async ({ to, subject, html, text }) => {
       },
       {
         headers: {
-          "api-key": process.env.BREVO_API_KEY, // ✅ FIXED
+          "api-key": process.env.BREVO_API_KEY,
           "Content-Type": "application/json"
         },
         timeout: 15000
@@ -153,22 +156,23 @@ const sendEmail = async ({
       mailOptions.replyTo = replyTo;
     }
 
-   const gmailSuccess = await Promise.race([
-  sendViaGmail(mailOptions),
-  new Promise((resolve) =>
-    setTimeout(() => {
-      console.log("⏱ Gmail timeout, switching...");
-      resolve(false);
-    }, 5000) // 5 seconds max
-  )
-]);
+    /* 🔥 STEP 1: TRY GMAIL (with timeout protection) */
+    const gmailSuccess = await Promise.race([
+      sendViaGmail(mailOptions),
+      new Promise((resolve) =>
+        setTimeout(() => {
+          console.log("⏱ Gmail timeout, switching...");
+          resolve(false);
+        }, 5000)
+      )
+    ]);
 
-    if (gmailSuccess) return true;
+    if (gmailSuccess === true) return true;
 
     /* 🔥 STEP 2: TRY BREVO API */
     const apiSuccess = await sendViaAPI({ to, subject, html, text });
 
-    if (apiSuccess) return true;
+    if (apiSuccess === true) return true;
 
     /* 🔁 STEP 3: FALLBACK SMTP */
     return await sendViaSMTP(mailOptions);

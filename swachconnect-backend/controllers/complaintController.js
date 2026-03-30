@@ -98,7 +98,12 @@ exports.createComplaint = async (req, res) => {
     const emailActionToken = crypto.randomBytes(32).toString("hex");
     const emailActionExpires = Date.now() + 2 * 60 * 60 * 1000;
 
+    /* 🔥 CUSTOM SC-ID */
+    const count = await Complaint.countDocuments();
+    const complaintId = `SC-${1000 + count + 1}`;
+
     const complaint = await Complaint.create({
+      complaintId, // ✅ NEW
       userId: user._id,
       reporterName: anonymous ? null : user.name,
       reporterEmail: user.email,
@@ -120,15 +125,52 @@ exports.createComplaint = async (req, res) => {
 
     console.log("✅ Complaint saved:", complaint._id);
 
+    /* --------------------------------------------------
+       🔥 PROFESSIONAL EMAIL
+    ---------------------------------------------------*/
+
     try {
       await sendEmail({
         to: complaint.reporterEmail,
-        subject: "Complaint Registered – SwachConnect",
-        html: `<h2>Complaint Registered</h2>
-               <p>Your complaint has been successfully submitted.</p>
-               <p><strong>ID:</strong> ${complaint._id}</p>`
+        subject: `Complaint Registered (${complaintId}) – SwachConnect`,
+        html: `
+        <div style="font-family: Arial; padding:20px;">
+          <h2 style="color:#2E7D32;">Complaint Registered ✅</h2>
+
+          <p>Your complaint has been successfully submitted.</p>
+
+          <hr/>
+
+          <p><strong>Complaint ID:</strong> ${complaintId}</p>
+          <p><strong>Description:</strong> ${complaint.description}</p>
+          <p><strong>Location:</strong> ${latitude || "-"}, ${longitude || "-"}</p>
+          <p><strong>Status:</strong> Pending</p>
+
+          <hr/>
+
+          <p><strong>Assigned Authority:</strong> ${complaint.assignedAuthority}</p>
+          <p><strong>Expected Resolution Time:</strong> 2 minutes</p>
+
+          <p style="color:#d32f2f;">
+            ⚠ If not resolved within the time, your complaint will be automatically escalated to higher authorities.
+          </p>
+
+          ${
+            images.length > 0
+              ? `<p><strong>Attached Image:</strong></p>
+                 <img src="${process.env.BASE_URL}${images[0]}" width="200"/>`
+              : ""
+          }
+
+          <hr/>
+
+          <p>Thank you for using <strong>SwachConnect</strong>.</p>
+        </div>
+        `
       });
+
       console.log("📧 Email sent");
+
     } catch (emailError) {
       console.log("⚠ Email failed but complaint saved:", emailError.message);
     }
@@ -141,6 +183,7 @@ exports.createComplaint = async (req, res) => {
 
   } catch (err) {
     console.error("❌ Complaint error:", err);
+
     res.status(500).json({
       message: "Complaint submission failed"
     });

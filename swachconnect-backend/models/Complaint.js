@@ -13,6 +13,13 @@ const complaintSchema = new mongoose.Schema(
       index: true,
     },
 
+    /* 🔥 NEW CUSTOM ID */
+    complaintId: {
+      type: String,
+      unique: true,
+      index: true,
+    },
+
     reporterName: {
       type: String,
       trim: true,
@@ -185,7 +192,6 @@ const complaintSchema = new mongoose.Schema(
       type: Date,
       index: true,
       default: function () {
-        // auto deadline = 3 days
         return new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
       },
     },
@@ -259,19 +265,18 @@ complaintSchema.virtual("imageUrls").get(function () {
   );
 });
 
-/* --------------------------------------------------
-   Ensure virtual fields are included in JSON
----------------------------------------------------*/
 
 complaintSchema.set("toJSON", {
   virtuals: true,
 });
 
-/* --------------------------------------------------
-   Pre-save hook (auto logic)
----------------------------------------------------*/
 
 complaintSchema.pre("save", async function () {
+  if (!this.complaintId) {
+    const count = await mongoose.model("Complaint").countDocuments();
+    this.complaintId = `SC-${1000 + count + 1}`;
+  }
+
   if (this.escalationLevel >= 6) {
     this.finalEscalationReached = true;
   }

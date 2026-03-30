@@ -66,12 +66,52 @@ exports.register = async (req, res) => {
 
       await sendEmail({
         to: user.email,
-        subject: "Welcome to SwachConnect",
+        subject: "Welcome to SwachConnect 🚀",
         html: `
-        <h2>Welcome ${user.name}</h2>
-        <p>Your SwachConnect account has been created successfully.</p>
-        <p>You can now submit complaints and track escalation.</p>
-        <p><b>SwachConnect Team</b></p>
+        <div style="font-family: Arial; padding:20px;">
+          
+          <h2 style="color:#2E7D32;">Welcome to SwachConnect, ${user.name}! 🎉</h2>
+
+          <p>Your account has been successfully created.</p>
+
+          <hr/>
+
+          <h3>🌍 What is SwachConnect?</h3>
+          <p>
+            SwachConnect is a smart civic complaint platform designed to help citizens
+            report issues like waste management, sanitation problems, and environmental concerns.
+          </p>
+
+          <h3>🚀 What You Can Do</h3>
+          <ul>
+            <li>📸 Upload complaints with images</li>
+            <li>📍 Track complaint status in real-time</li>
+            <li>⚡ Automatic escalation to higher authorities</li>
+            <li>📢 Social escalation for public awareness</li>
+          </ul>
+
+          <hr/>
+
+          <h3>📌 How It Works</h3>
+          <p>
+            Once you submit a complaint, it is assigned to the nearest authority.
+            If not resolved within the deadline, it will be automatically escalated
+            to higher authorities.
+          </p>
+
+          <p style="color:#d32f2f;">
+            ⚠ This ensures accountability and faster resolution.
+          </p>
+
+          <hr/>
+
+          <p>
+            Start reporting issues and make your city cleaner with <b>SwachConnect</b>.
+          </p>
+
+          <p><b>SwachConnect Team</b></p>
+
+        </div>
         `,
       });
 
@@ -104,9 +144,6 @@ exports.register = async (req, res) => {
 
   }
 };
-
-
-
 
 /* ================= LOGIN ================= */
 
