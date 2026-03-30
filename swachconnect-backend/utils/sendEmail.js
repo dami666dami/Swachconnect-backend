@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const axios = require("axios");
 
 /* --------------------------------------------------
    Validate environment variables
@@ -14,41 +15,73 @@ if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp-relay.brevo.com",
-
-  // 🔥 Try 465 first (better for Render)
   port: Number(process.env.SMTP_PORT) || 465,
-  secure: true, // ✅ TRUE for port 465
+  secure: true,
 
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },
 
-  // 🔥 IMPORTANT FIXES FOR RENDER
   requireTLS: true,
   tls: {
     rejectUnauthorized: false
   },
 
-  connectionTimeout: 60000, // increased
+  connectionTimeout: 60000,
   greetingTimeout: 60000,
   socketTimeout: 60000
 });
 
 /* --------------------------------------------------
-   Verify SMTP connection (runs once)
+   Verify SMTP connection
 ---------------------------------------------------*/
 
 transporter.verify((error) => {
   if (error) {
     console.error("❌ SMTP connection failed:", error.message);
   } else {
-    console.log("📧 SMTP server is ready to send emails");
+    console.log("📧 SMTP ready");
   }
 });
 
 /* --------------------------------------------------
-   Send Email Function
+   🔥 Brevo API fallback
+---------------------------------------------------*/
+
+const sendViaAPI = async ({ to, subject, html, text }) => {
+  try {
+    const response = await axios.post(
+      "https://api.brevo.com/v3/smtp/email",
+      {
+        sender: {
+          name: "SwachConnect",
+          email: "swachconnect@gmail.com"
+        },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+        textContent: text
+      },
+      {
+        headers: {
+          "api-key": process.env.EMAIL_PASS,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    console.log("✅ Email sent via Brevo API");
+    return true;
+
+  } catch (error) {
+    console.error("❌ Brevo API failed:", error.response?.data || error.message);
+    return false;
+  }
+};
+
+/* --------------------------------------------------
+   Send Email Function (SMART)
 ---------------------------------------------------*/
 
 const sendEmail = async ({
@@ -60,28 +93,21 @@ const sendEmail = async ({
   replyTo = null
 }) => {
   try {
-    /* -------- VALIDATION -------- */
-
     if (!to || !subject) {
       console.error("❌ Missing 'to' or 'subject'");
       return false;
     }
 
-    /* -------- EMAIL OPTIONS -------- */
-
     const mailOptions = {
-      from: `"SwachConnect Support" <swachconnect@gmail.com>`, // must be verified in Brevo
+      from: `"SwachConnect Support" <swachconnect@gmail.com>`,
       to,
       subject,
-
       text:
         text ||
         (html
           ? "This is an official notification from SwachConnect."
           : "SwachConnect Notification"),
-
       html: html || undefined,
-
       attachments: Array.isArray(attachments) ? attachments : []
     };
 
@@ -89,27 +115,22 @@ const sendEmail = async ({
       mailOptions.replyTo = replyTo;
     }
 
-    /* -------- SEND EMAIL -------- */
+    console.log("📤 Attempting SMTP email...");
 
-    console.log("📤 Sending email to:", to);
-
+    /* -------- TRY SMTP FIRST -------- */
     const info = await transporter.sendMail(mailOptions);
 
-    console.log("✅ Email sent successfully");
-    console.log("📨 To:", to);
+    console.log("✅ Email sent via SMTP");
     console.log("📌 Message ID:", info.messageId);
 
     return true;
 
   } catch (error) {
+    console.error("❌ SMTP failed:", error.message);
 
-    // 🔥 IMPORTANT: DO NOT CRASH SYSTEM
-    console.error("❌ Email sending failed");
-    console.error("🔍 Full error:", error.message || error);
-
-    // 🔥 fallback log
-    if (error.code === "ETIMEDOUT") {
-      console.error("⚠ SMTP timeout - possible Render network restriction");
+    if (error.code === "ETIMEDOUT" || error.code === "ESOCKET") {
+      console.log("⚠ Switching to Brevo API fallback...");
+      return await sendViaAPI({ to, subject, html, text });
     }
 
     return false;
