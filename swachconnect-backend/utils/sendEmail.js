@@ -9,6 +9,10 @@ if (!process.env.EMAIL_PASS) {
   console.warn("⚠ EMAIL_PASS not configured");
 }
 
+if (!process.env.BREVO_API_KEY) {
+  console.warn("⚠ BREVO_API_KEY not configured");
+}
+
 /* --------------------------------------------------
    🔥 PRIMARY SMTP (GMAIL)
 ---------------------------------------------------*/
@@ -32,7 +36,7 @@ const transporter = nodemailer.createTransport({
 
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+    pass: process.env.BREVO_API_KEY // ✅ FIXED
   },
 
   tls: {
@@ -82,7 +86,7 @@ const sendViaAPI = async ({ to, subject, html, text }) => {
       },
       {
         headers: {
-          "api-key": process.env.EMAIL_PASS,
+          "api-key": process.env.BREVO_API_KEY, // ✅ FIXED
           "Content-Type": "application/json"
         },
         timeout: 15000
