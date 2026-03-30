@@ -775,8 +775,21 @@ class _LoginPageState extends State<LoginPage> {
       if (res.statusCode == 200) {
         final body  = jsonDecode(res.body);
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(AppConfig.tokenKey, body["token"]);
-        await prefs.setString(AppConfig.nameKey,  body["user"]["name"]);
+        String? token;
+
+        if (body["token"] != null) {
+          token = body["token"];
+        } else if (body["data"] != null && body["data"]["token"] != null) {
+          token = body["data"]["token"];
+        }
+
+        if (token == null) {
+          _showSnack(context, "Token missing from server", isError: true);
+          return;
+        }
+        await prefs.setString(AppConfig.tokenKey, token);await prefs.setString(AppConfig.tokenKey, body["token"]);
+        await prefs.setString(AppConfig.nameKey, body["user"]?["name"] ?? "User");
+        print("TOKEN SAVED: $token");
         if (!mounted) return;
         Navigator.pushReplacement(
           context,
