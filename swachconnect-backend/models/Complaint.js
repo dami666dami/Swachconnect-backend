@@ -265,21 +265,49 @@ complaintSchema.virtual("imageUrls").get(function () {
   );
 });
 
-
 complaintSchema.set("toJSON", {
   virtuals: true,
 });
 
+/* --------------------------------------------------
+   Pre-save hook (UPDATED 🔥)
+---------------------------------------------------*/
 
 complaintSchema.pre("save", async function () {
+
+  // Generate complaint ID
   if (!this.complaintId) {
     const count = await mongoose.model("Complaint").countDocuments();
     this.complaintId = `SC-${1000 + count + 1}`;
   }
 
+  // Final escalation flag
   if (this.escalationLevel >= 6) {
     this.finalEscalationReached = true;
   }
+
+  // 🔥 AUTO SOCIAL ESCALATION LOGIC
+  if (
+    this.status !== "Resolved" &&
+    this.finalEscalationReached &&
+    !this.socialEscalated
+  ) {
+    this.socialEscalated = true;
+    this.socialPostedAt = new Date();
+
+    this.socialPostContent = `
+🚨 UNRESOLVED COMPLAINT
+
+🆔 ID: ${this.complaintId}
+📍 Location: ${this.location?.lat}, ${this.location?.lng}
+🏛 Authority: ${this.assignedAuthority}
+
+⚠️ Not resolved even after escalation
+
+#SwachConnect #CleanIndia #PublicAlert
+`;
+  }
+
 });
 
 module.exports = mongoose.model("Complaint", complaintSchema);

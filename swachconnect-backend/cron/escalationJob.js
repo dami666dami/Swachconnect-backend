@@ -149,11 +149,6 @@ const runEscalationCron = async () => {
   }
 };
 
-/* --------------------------------------------------
-   Run cron
----------------------------------------------------*/
-
-/* 🔥 DEMO MODE FAST CRON */
 if (DEMO_MODE) {
   cron.schedule("*/2 * * * *", runEscalationCron, {
     timezone: "Asia/Kolkata",

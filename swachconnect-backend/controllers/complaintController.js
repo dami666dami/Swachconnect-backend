@@ -12,17 +12,19 @@ const authorityLevels = [
   "National Authorities",
 ];
 
-const getEmailExpiryByAuthority = (authority) => {
+const DEMO_MODE = process.env.DEMO_MODE === "true";
+
+const getDeadlineByAuthority = (authority = "Municipality / Panchayat") => {
 
   if (DEMO_MODE) {
-    return Date.now() + 5 * 60 * 1000; 
+    return new Date(Date.now() + 5 * 60 * 1000);
   }
 
   if (authority === "Municipality / Panchayat") {
-    return Date.now() + 24 * 60 * 60 * 1000;
+    return new Date(Date.now() + 24 * 60 * 60 * 1000); 
   }
 
-  return Date.now() + 48 * 60 * 60 * 1000;
+  return new Date(Date.now() + 48 * 60 * 60 * 1000); 
 };
 
 const getDistanceInMeters = (lat1, lng1, lat2, lng2) => {
@@ -107,12 +109,11 @@ exports.createComplaint = async (req, res) => {
     const emailActionToken = crypto.randomBytes(32).toString("hex");
     const emailActionExpires = Date.now() + 2 * 60 * 60 * 1000;
 
-    /* 🔥 CUSTOM SC-ID */
     const count = await Complaint.countDocuments();
     const complaintId = `SC-${1000 + count + 1}`;
 
     const complaint = await Complaint.create({
-      complaintId, // ✅ NEW
+      complaintId,
       userId: user._id,
       reporterName: anonymous ? null : user.name,
       reporterEmail: user.email,
@@ -127,16 +128,12 @@ exports.createComplaint = async (req, res) => {
       escalationEmailSent: false,
       finalEscalationReached: false,
       socialEscalated: false,
-      deadline: getDeadlineByAuthority(),
+      deadline: getDeadlineByAuthority(authorityLevels[0]),
       emailActionToken,
       emailActionExpires
     });
 
-    console.log("✅ Complaint saved:", complaint._id);
-
-    /* --------------------------------------------------
-       🔥 PROFESSIONAL EMAIL
-    ---------------------------------------------------*/
+    console.log(" Complaint saved:", complaint._id);
 
     try {
       await sendEmail({
@@ -145,41 +142,30 @@ exports.createComplaint = async (req, res) => {
         html: `
         <div style="font-family: Arial; padding:20px;">
           <h2 style="color:#2E7D32;">Complaint Registered ✅</h2>
-
           <p>Your complaint has been successfully submitted.</p>
-
           <hr/>
-
           <p><strong>Complaint ID:</strong> ${complaintId}</p>
           <p><strong>Description:</strong> ${complaint.description}</p>
           <p><strong>Location:</strong> ${latitude || "-"}, ${longitude || "-"}</p>
           <p><strong>Status:</strong> Pending</p>
-
           <hr/>
-
           <p><strong>Assigned Authority:</strong> ${complaint.assignedAuthority}</p>
           <p><strong>Expected Resolution Time:</strong> 2 minutes</p>
-
           <p style="color:#d32f2f;">
             ⚠ If not resolved within the time, your complaint will be automatically escalated to higher authorities.
           </p>
-
           ${
             images.length > 0
               ? `<p><strong>Attached Image:</strong></p>
                  <img src="${process.env.BASE_URL}${images[0]}" width="200"/>`
               : ""
           }
-
           <hr/>
-
           <p>Thank you for using <strong>SwachConnect</strong>.</p>
         </div>
         `
       });
-
       console.log("📧 Email sent");
-
     } catch (emailError) {
       console.log("⚠ Email failed but complaint saved:", emailError.message);
     }
@@ -192,9 +178,44 @@ exports.createComplaint = async (req, res) => {
 
   } catch (err) {
     console.error("❌ Complaint error:", err);
-
     res.status(500).json({
       message: "Complaint submission failed"
+    });
+  }
+};
+
+/* --------------------------------------------------
+   🔥 NEW: SOCIAL ESCALATION TRACKING
+---------------------------------------------------*/
+
+exports.socialEscalate = async (req, res) => {
+  try {
+    const { message } = req.body;
+
+    const complaint = await Complaint.findById(req.params.id);
+
+    if (!complaint) {
+      return res.status(404).json({ message: "Complaint not found" });
+    }
+
+    complaint.socialEscalated = true;
+    complaint.socialPostedAt = new Date();
+
+    if (message) {
+      complaint.socialPostContent = message;
+    }
+
+    await complaint.save();
+
+    res.json({
+      success: true,
+      message: "Social escalation recorded",
+      complaint,
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      message: "Social escalation failed",
     });
   }
 };
@@ -281,7 +302,7 @@ exports.escalateComplaint = async (req, res) => {
     complaint.assignedAuthority =
       authorityLevels[complaint.escalationLevel];
     complaint.status = "Escalated";
-    complaint.deadline = getDeadlineByAuthority();
+    complaint.deadline = getDeadlineByAuthority(complaint.assignedAuthority);
 
     await complaint.save();
 
@@ -306,22 +327,19 @@ exports.emailEscalateComplaint = async (req, res) => {
     });
 
     if (!complaint) {
-      return res.send(`
-        <h2>❌ Invalid or expired link</h2>
-      `);
+      return res.send(`<h2>❌ Invalid or expired link</h2>`);
     }
 
     complaint.escalationLevel += 1;
     complaint.assignedAuthority =
       authorityLevels[complaint.escalationLevel];
     complaint.status = "Escalated";
-    complaint.deadline = getDeadlineByAuthority();
+    complaint.deadline = getDeadlineByAuthority(complaint.assignedAuthority);
     complaint.emailActionToken = null;
     complaint.emailActionExpires = null;
 
     await complaint.save();
 
-    /* 🔥 BEAUTIFUL PAGE */
     res.send(`
       <html>
       <head>

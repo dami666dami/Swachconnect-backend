@@ -14,6 +14,7 @@ const {
   escalateComplaint,
   emailEscalateComplaint,
   emailWaitComplaint,
+  socialEscalate, // 🔥 NEW
 } = complaintController;
 
 /* --------------------------------------------------
@@ -87,6 +88,12 @@ router.delete("/:id", protect, deleteComplaint);
 ---------------------------------------------------*/
 
 router.put("/escalate/:id", protect, escalateComplaint);
+
+/* --------------------------------------------------
+   🔥 NEW: SOCIAL ESCALATION (IMPORTANT)
+---------------------------------------------------*/
+
+router.put("/social-escalate/:id", protect, socialEscalate);
 
 /* --------------------------------------------------
    EMAIL ESCALATE ACTION
