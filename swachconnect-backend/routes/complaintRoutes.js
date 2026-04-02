@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const upload = require("../middleware/upload");
-const protect = require("../middleware/authMiddleware");
+const { protect, adminOnly } = require("../middleware/authMiddleware");
 
 const complaintController = require("../controllers/complaintController");
 
@@ -75,13 +75,13 @@ router.get("/my", protect, getUserComplaints);
    GET ALL COMPLAINTS (ADMIN)
 ---------------------------------------------------*/
 
-router.get("/all", protect, getAllComplaints);
+router.get("/all", protect, adminOnly, getAllComplaints);
 
 /* --------------------------------------------------
-   DELETE COMPLAINT
+   DELETE COMPLAINT (ADMIN ONLY)
 ---------------------------------------------------*/
 
-router.delete("/:id", protect, deleteComplaint);
+router.delete("/:id", protect, adminOnly, deleteComplaint);
 
 /* --------------------------------------------------
    MANUAL ESCALATION
@@ -118,10 +118,10 @@ router.put(
 );
 
 /* --------------------------------------------------
-   ✅ NEW: AUTHORITY REMARK (IMPORTANT FEATURE)
+   ✅ NEW: AUTHORITY REMARK (ADMIN ONLY)
 ---------------------------------------------------*/
 
-router.put("/add-remark/:id", protect, async (req, res) => {
+router.put("/add-remark/:id", protect, adminOnly, async (req, res) => {
   try {
     const { remark } = req.body;
 

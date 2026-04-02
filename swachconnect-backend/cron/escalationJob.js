@@ -3,11 +3,6 @@ const mongoose = require("mongoose");
 const Complaint = require("../models/Complaint");
 const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
-
-/* --------------------------------------------------
-   Authority levels
----------------------------------------------------*/
-
 const authorities = [
   "Municipality / Panchayat",
   "Ward Councillor",
@@ -18,16 +13,8 @@ const authorities = [
   "National Authorities",
 ];
 
-/* --------------------------------------------------
-   🔥 DEMO MODE CONTROL
----------------------------------------------------*/
 
 const DEMO_MODE = process.env.DEMO_MODE === "true";
-
-/* --------------------------------------------------
-   Email expiry rules
----------------------------------------------------*/
-
 const getEmailExpiryByAuthority = (authority) => {
 
   if (DEMO_MODE) {
@@ -40,10 +27,6 @@ const getEmailExpiryByAuthority = (authority) => {
 
   return Date.now() + 48 * 60 * 60 * 1000;
 };
-
-/* --------------------------------------------------
-   Escalation logic
----------------------------------------------------*/
 
 const runEscalationCron = async () => {
   try {
@@ -132,20 +115,20 @@ const runEscalationCron = async () => {
         });
 
         if (emailSent) {
-          console.log(`📧 Escalation email sent → ${complaint.userId.email}`);
+          console.log(` Escalation email sent → ${complaint.userId.email}`);
         } else {
           console.warn(`⚠ Failed to send escalation email → ${complaint._id}`);
         }
 
       } catch (err) {
-        console.error(`❌ Error processing complaint ${complaint._id}:`, err.message);
+        console.error(` Error processing complaint ${complaint._id}:`, err.message);
       }
     }
 
-    console.log("✅ Escalation cron finished");
+    console.log(" Escalation cron finished");
 
   } catch (err) {
-    console.error("❌ Escalation cron error:", err.message);
+    console.error(" Escalation cron error:", err.message);
   }
 };
 

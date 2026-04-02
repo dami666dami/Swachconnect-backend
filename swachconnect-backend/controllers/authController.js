@@ -58,6 +58,7 @@ exports.register = async (req, res) => {
       name: name.trim(),
       email: normalizedEmail,
       password: hashedPassword,
+      role: "user",
     });
 
     /* OPTIONAL WELCOME EMAIL */
@@ -130,6 +131,7 @@ exports.register = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,
       },
     });
 
@@ -186,6 +188,7 @@ exports.login = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role, 
       },
     });
 

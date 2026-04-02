@@ -262,9 +262,6 @@ exports.getAllComplaints = async (req, res) => {
   }
 };
 
-/* --------------------------------------------------
-   DELETE COMPLAINT
----------------------------------------------------*/
 
 exports.deleteComplaint = async (req, res) => {
   try {
@@ -424,7 +421,15 @@ exports.emailWaitComplaint = async (req, res) => {
 
 exports.submitFeedback = async (req, res) => {
   try {
-    const { rating, comment } = req.body;
+    const { rating, feedback } = req.body;
+
+    /* 🔥 VALIDATION */
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: "Rating must be between 1 and 5",
+      });
+    }
 
     const complaint = await Complaint.findOne({
       _id: req.params.id,
@@ -432,28 +437,43 @@ exports.submitFeedback = async (req, res) => {
     });
 
     if (!complaint) {
-      return res.status(404).json({ message: "Complaint not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Complaint not found",
+      });
     }
 
     if (complaint.status !== "Resolved") {
       return res.status(400).json({
+        success: false,
         message: "Feedback allowed only after resolution",
+      });
+    }
+
+    if (complaint.feedbackGiven) {
+      return res.status(400).json({
+        success: false,
+        message: "Feedback already submitted",
       });
     }
 
     complaint.feedbackGiven = true;
     complaint.feedbackRating = rating;
-    complaint.feedbackMessage = comment;
+    complaint.feedbackMessage = feedback || null;
 
     await complaint.save();
 
     res.json({
       success: true,
       message: "Feedback submitted successfully",
+      complaint,
     });
 
   } catch (err) {
+    console.error("❌ Feedback Error:", err.message);
+
     res.status(500).json({
+      success: false,
       message: "Feedback submission failed",
     });
   }

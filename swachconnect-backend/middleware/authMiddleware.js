@@ -16,7 +16,6 @@ const protect = async (req, res, next) => {
       });
     }
 
-    // 🔥 FIX 1: Trim token (IMPORTANT)
     const token = authHeader.split(" ")[1]?.trim();
 
     if (!token) {
@@ -41,7 +40,6 @@ const protect = async (req, res, next) => {
     } catch (err) {
       console.warn("⚠ Invalid or expired token:", err.message);
 
-      // 🔥 FIX 2: Better error clarity (optional but useful)
       let message = "Token expired or invalid";
 
       if (err.name === "TokenExpiredError") {
@@ -83,4 +81,37 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = protect;
+/* --------------------------------------------------
+   ADMIN ONLY MIDDLEWARE (NEW)
+---------------------------------------------------*/
+
+const adminOnly = (req, res, next) => {
+  try {
+
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authenticated",
+      });
+    }
+
+    if (req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admin only",
+      });
+    }
+
+    next();
+
+  } catch (error) {
+    console.error("❌ ADMIN MIDDLEWARE ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error in admin check",
+    });
+  }
+};
+
+module.exports = { protect, adminOnly };
