@@ -13,7 +13,6 @@ import 'register_complaint_page.dart';
 import 'complaint_history_page.dart';
 import 'feedback_page.dart';
 
-/// Global notifier to rebuild entire app when language changes
 ValueNotifier<int> languageNotifier = ValueNotifier(0);
 
 void main() async {
@@ -26,38 +25,25 @@ void main() async {
   runApp(const SwachConnectApp());
 }
 
-// ── Design System ──────────────────────────────────────────────────────────
-
 class AppColors {
-  // Earthy, rich greens — premium civic feel
   static const forest       = Color(0xFF1A3C2A);
   static const pine         = Color(0xFF2D5A3D);
   static const moss         = Color(0xFF3E7A53);
   static const sage         = Color(0xFF6BAB7E);
   static const mist         = Color(0xFFB8D9C2);
   static const dew          = Color(0xFFE8F4EC);
-
-  // Warm neutrals
   static const ink          = Color(0xFF0F1F15);
   static const charcoal     = Color(0xFF2C3E30);
   static const slate        = Color(0xFF5A7262);
   static const ash          = Color(0xFF94A89C);
   static const cloud        = Color(0xFFF4F7F5);
   static const paper        = Color(0xFFFFFFFF);
-
-  // Gold accent
   static const gold         = Color(0xFFD4A843);
   static const goldLight    = Color(0xFFF5E4B0);
-
-  // Status
   static const errorRed     = Color(0xFFD63031);
-
-  // Purple for Feedback card
   static const feedbackPurple      = Color(0xFF4A148C);
   static const feedbackPurpleLight = Color(0xFF7B1FA2);
   static const feedbackBadge       = Color(0xFFCE93D8);
-
-  // Gradients
   static const primaryGrad  = LinearGradient(
     colors: [forest, pine],
     begin: Alignment.topLeft,
@@ -118,8 +104,6 @@ class AppTypography {
     color: AppColors.slate, letterSpacing: 0.1,
   );
 }
-
-// ── SwachConnect Custom Logo Widget ────────────────────────────────────────
 
 class SwachConnectLogo extends StatelessWidget {
   final double size;
