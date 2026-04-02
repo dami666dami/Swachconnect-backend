@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'config.dart';
 
 class FeedbackPage extends StatefulWidget {
-  const FeedbackPage({super.key});
+final String complaintId;
+
+const FeedbackPage({super.key, required this.complaintId});
 
   @override
   State<FeedbackPage> createState() => _FeedbackPageState();
@@ -147,16 +153,43 @@ class _FeedbackPageState extends State<FeedbackPage>
     }
 
     setState(() => isSubmitting = true);
-    await Future.delayed(const Duration(milliseconds: 1400));
 
-    if (!mounted) return;
-    _showSnack('Thank you! Your feedback matters 🙏', isError: false);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("token");
 
-    setState(() {
-      rating = 0;
-      isSubmitting = false;
-      feedbackController.clear();
-    });
+      final res = await http.put(
+        Uri.parse("${AppConfig.backendBase}/api/complaints/feedback/${widget.complaintId}"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token"
+        },
+        body: jsonEncode({
+          "rating": rating,
+          "feedback": feedbackController.text.trim(),
+        }),
+      );
+
+      if (res.statusCode == 200) {
+        _showSnack('Thank you! Your feedback matters 🙏', isError: false);
+
+        setState(() {
+          rating = 0;
+          feedbackController.clear();
+        });
+
+        Navigator.pop(context);
+
+      } else {
+        final data = jsonDecode(res.body);
+        _showSnack(data["message"] ?? "Failed", isError: true);
+      }
+
+    } catch (e) {
+      _showSnack("Network error", isError: true);
+    }
+
+    setState(() => isSubmitting = false);
   }
 
   void _showSnack(String msg, {required bool isError}) {

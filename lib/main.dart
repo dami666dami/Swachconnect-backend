@@ -12,6 +12,7 @@ import 'otp_page.dart';
 import 'register_complaint_page.dart';
 import 'complaint_history_page.dart';
 import 'feedback_page.dart';
+import 'admin_page.dart'; // ← ADDED
 
 ValueNotifier<int> languageNotifier = ValueNotifier(0);
 
@@ -44,6 +45,12 @@ class AppColors {
   static const feedbackPurple      = Color(0xFF4A148C);
   static const feedbackPurpleLight = Color(0xFF7B1FA2);
   static const feedbackBadge       = Color(0xFFCE93D8);
+
+  // ← ADDED: Admin gradient colors
+  static const adminDeep    = Color(0xFF0F172A);
+  static const adminMid     = Color(0xFF1E3A5F);
+  static const adminAccent  = Color(0xFF3B82F6);
+
   static const primaryGrad  = LinearGradient(
     colors: [forest, pine],
     begin: Alignment.topLeft,
@@ -67,6 +74,13 @@ class AppColors {
   );
   static const feedbackGrad = LinearGradient(
     colors: [feedbackPurple, feedbackPurpleLight],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  // ← ADDED
+  static const adminGrad    = LinearGradient(
+    colors: [adminDeep, adminMid],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -410,15 +424,27 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
+  // ← MODIFIED: Role-based routing
   Future<void> _checkLogin() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(AppConfig.tokenKey);
+    final role  = prefs.getString("role") ?? "user"; // ← ADDED
+
     if (!mounted) return;
+
+    Widget destination;
+    if (token == null || token.isEmpty) {
+      destination = const LoginPage();
+    } else if (role == "admin") {
+      destination = const AdminPage(); // ← ADDED: admin auto-route
+    } else {
+      destination = const HomePage();
+    }
+
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, a, __) =>
-        token == null || token.isEmpty ? const LoginPage() : const HomePage(),
+        pageBuilder: (_, a, __) => destination,
         transitionsBuilder: (_, a, __, child) =>
             FadeTransition(opacity: a, child: child),
         transitionDuration: const Duration(milliseconds: 500),
@@ -626,7 +652,6 @@ class _AuthHeader extends StatelessWidget {
   }
 }
 
-/// Polished snack bar helper
 void _showSnack(BuildContext context, String msg, {bool isError = false}) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
@@ -649,7 +674,6 @@ void _showSnack(BuildContext context, String msg, {bool isError = false}) {
   );
 }
 
-/// Premium button with loading state and gradient
 class _PrimaryButton extends StatelessWidget {
   final String label;
   final bool loading;
@@ -759,27 +783,30 @@ class _LoginPageState extends State<LoginPage> {
       if (res.statusCode == 200) {
         final body  = jsonDecode(res.body);
         final prefs = await SharedPreferences.getInstance();
-        String? token;
 
-        if (body["token"] != null) {
-          token = body["token"];
-        } else if (body["data"] != null && body["data"]["token"] != null) {
-          token = body["data"]["token"];
-        }
-
+        // ← FIXED: single clean token save
+        final token = body["token"] ?? body["data"]?["token"];
         if (token == null) {
           _showSnack(context, "Token missing from server", isError: true);
           return;
         }
-        await prefs.setString(AppConfig.tokenKey, token);await prefs.setString(AppConfig.tokenKey, body["token"]);
+        await prefs.setString(AppConfig.tokenKey, token);
         await prefs.setString(AppConfig.nameKey, body["user"]?["name"] ?? "User");
-        print("FULL RESPONSE: $body");
-        print("TOKEN SAVED: $token");
+
+        // ← ADDED: save role
+        await prefs.setString("role", body["user"]?["role"] ?? "user");
+
+        final role = body["user"]?["role"] ?? "user"; // ← ADDED
+
         if (!mounted) return;
+
+        // ← ADDED: route based on role
+        final destination = role == "admin" ? const AdminPage() : const HomePage();
+
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
-            pageBuilder: (_, __, ___) => const HomePage(),
+            pageBuilder: (_, __, ___) => destination,
             transitionsBuilder: (_, a, __, child) =>
                 FadeTransition(opacity: a, child: child),
           ),
@@ -948,6 +975,7 @@ class _RegisterPageState extends State<RegisterPage> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(AppConfig.tokenKey, body["token"]);
         await prefs.setString(AppConfig.nameKey,  body["user"]["name"]);
+        await prefs.setString("role", body["user"]?["role"] ?? "user"); // ← ADDED
         if (!mounted) return;
         Navigator.pushAndRemoveUntil(
           context,
@@ -1196,9 +1224,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Timer? _timer;
   int    _slideIndex = 0;
   String name        = "User";
+  String role        = "user"; // ← ADDED
 
   late AnimationController _entryCtrl;
   late Animation<double>   _entryAnim;
+
+  // ← ADDED: animation controller for admin card pulse
+  late AnimationController _adminPulseCtrl;
+  late Animation<double>   _adminPulseAnim;
 
   final slides = [
     "assets/slideshow/slide1.png",
@@ -1220,6 +1253,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         vsync: this, duration: const Duration(milliseconds: 700));
     _entryAnim = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
     _entryCtrl.forward();
+
+    // ← ADDED: admin pulse animation
+    _adminPulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+    _adminPulseAnim = Tween<double>(begin: 1.0, end: 1.03).animate(
+      CurvedAnimation(parent: _adminPulseCtrl, curve: Curves.easeInOut),
+    );
+
     _timer = Timer.periodic(const Duration(seconds: 4), (_) {
       _slideIndex = (_slideIndex + 1) % slides.length;
       _pageCtrl.animateToPage(
@@ -1231,9 +1274,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
 
+  // ← MODIFIED: also loads role
   Future<void> _loadName() async {
     final prefs = await SharedPreferences.getInstance();
-    if (mounted) setState(() => name = prefs.getString(AppConfig.nameKey) ?? "User");
+    if (mounted) setState(() {
+      name = prefs.getString(AppConfig.nameKey) ?? "User";
+      role = prefs.getString("role") ?? "user"; // ← ADDED
+    });
   }
 
   Future<void> _logout() async {
@@ -1256,6 +1303,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _timer?.cancel();
     _pageCtrl.dispose();
     _entryCtrl.dispose();
+    _adminPulseCtrl.dispose(); // ← ADDED
     super.dispose();
   }
 
@@ -1358,6 +1406,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   borderRadius: BorderRadius.circular(14)),
                               onSelected: (v) {
                                 if (v == "logout") { _logout(); }
+                                // ← ADDED: admin panel from menu
+                                if (v == "admin") {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const AdminPage()),
+                                  );
+                                }
                               },
                               itemBuilder: (_) => [
                                 PopupMenuItem(
@@ -1369,12 +1424,67 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                           style: AppTypography.title
                                               .copyWith(fontSize: 15)),
                                       const SizedBox(height: 2),
-                                      Text("Citizen Member",
-                                          style: AppTypography.caption),
+                                      // ← ADDED: show role badge in menu header
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: role == "admin"
+                                              ? AppColors.adminAccent.withOpacity(0.12)
+                                              : AppColors.dew,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: role == "admin"
+                                                ? AppColors.adminAccent.withOpacity(0.3)
+                                                : AppColors.mist,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          role == "admin" ? "Administrator" : "Citizen Member",
+                                          style: AppTypography.caption.copyWith(
+                                            color: role == "admin"
+                                                ? AppColors.adminAccent
+                                                : AppColors.ash,
+                                            letterSpacing: 0.8,
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
                                 const PopupMenuDivider(),
+
+                                // ← ADDED: Admin Panel menu item (only for admin)
+                                if (role == "admin")
+                                  PopupMenuItem(
+                                    value: "admin",
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.adminAccent.withOpacity(0.12),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: const Icon(
+                                            Icons.shield_rounded,
+                                            size: 14,
+                                            color: AppColors.adminAccent,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        const Text(
+                                          "Admin Panel",
+                                          style: TextStyle(
+                                            color: AppColors.adminAccent,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                if (role == "admin") const PopupMenuDivider(),
+
                                 PopupMenuItem(
                                   value: "logout",
                                   child: Row(
@@ -1565,9 +1675,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const FeedbackPage()),
+                            builder: (_) => FeedbackPage(complaintId: "123")),
                       ),
                     ),
+
+                    // ── ADMIN PANEL CARD (admin only) ── ← ADDED
+                    if (role == "admin") ...[
+                      const SizedBox(height: 16),
+                      _AdminPanelCard(
+                        pulseAnim: _adminPulseAnim,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AdminPage()),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1583,6 +1705,277 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       ),
     );
   }
+}
+
+// ── ADDED: Enhanced Admin Panel Card ─────────────────────────────────────────
+class _AdminPanelCard extends StatelessWidget {
+  final Animation<double> pulseAnim;
+  final VoidCallback onTap;
+
+  const _AdminPanelCard({required this.pulseAnim, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: pulseAnim,
+      builder: (_, child) => Transform.scale(
+        scale: pulseAnim.value,
+        child: child,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Ink(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0F172A), Color(0xFF1E3A5F), Color(0xFF1E40AF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: AppColors.adminAccent.withOpacity(0.35),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.adminAccent.withOpacity(0.25),
+                  blurRadius: 28,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                // Decorative grid lines (subtle)
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: CustomPaint(painter: _GridPainter()),
+                  ),
+                ),
+
+                // Glow orb top-right
+                Positioned(
+                  top: -20,
+                  right: -20,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.adminAccent.withOpacity(0.12),
+                    ),
+                  ),
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.all(22),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          // Shield icon with glow ring
+                          Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Container(
+                                width: 58,
+                                height: 58,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.adminAccent.withOpacity(0.10),
+                                  border: Border.all(
+                                    color: AppColors.adminAccent.withOpacity(0.30),
+                                    width: 1,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  color: AppColors.adminAccent.withOpacity(0.18),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: AppColors.adminAccent.withOpacity(0.4),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.shield_rounded,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const Spacer(),
+
+                          // ADMIN ONLY badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AppColors.adminAccent.withOpacity(0.18),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppColors.adminAccent.withOpacity(0.45),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 5, height: 5,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Color(0xFF34D399),
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                const Text(
+                                  "ADMIN ONLY",
+                                  style: TextStyle(
+                                    color: Color(0xFF93C5FD),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      const Text(
+                        "Admin Console",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      Text(
+                        "Manage complaints, users, and platform-wide reports",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.60),
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      // Stats row
+                      Row(
+                        children: [
+                          _AdminMiniStat(label: "Manage", icon: Icons.inbox_rounded),
+                          const SizedBox(width: 12),
+                          _AdminMiniStat(label: "Resolve", icon: Icons.check_circle_outline_rounded),
+                          const SizedBox(width: 12),
+                          _AdminMiniStat(label: "Remark", icon: Icons.edit_note_rounded),
+                          const Spacer(),
+                          // Arrow button
+                          Container(
+                            width: 36, height: 36,
+                            decoration: BoxDecoration(
+                              color: AppColors.adminAccent.withOpacity(0.20),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: AppColors.adminAccent.withOpacity(0.4),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.arrow_forward_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminMiniStat extends StatelessWidget {
+  final String label;
+  final IconData icon;
+
+  const _AdminMiniStat({required this.label, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white.withOpacity(0.70), size: 12),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.70),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Subtle grid background for admin card
+class _GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.04)
+      ..strokeWidth = 0.8;
+
+    const step = 28.0;
+    for (double x = 0; x < size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (double y = 0; y < size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
 }
 
 /// Glassmorphic icon button
