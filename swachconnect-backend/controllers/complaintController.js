@@ -21,10 +21,10 @@ const getDeadlineByAuthority = (authority = "Municipality / Panchayat") => {
   }
 
   if (authority === "Municipality / Panchayat") {
-    return new Date(Date.now() + 24 * 60 * 60 * 1000); 
+    return new Date(Date.now() + 24 * 60 * 60 * 1000);
   }
 
-  return new Date(Date.now() + 48 * 60 * 60 * 1000); 
+  return new Date(Date.now() + 48 * 60 * 60 * 1000);
 };
 
 const getDistanceInMeters = (lat1, lng1, lat2, lng2) => {
@@ -37,8 +37,8 @@ const getDistanceInMeters = (lat1, lng1, lat2, lng2) => {
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) ** 2;
 
   return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
@@ -135,11 +135,11 @@ exports.createComplaint = async (req, res) => {
 
     console.log(" Complaint saved:", complaint._id);
 
-try {
-  await sendEmail({
-    to: complaint.reporterEmail,
-    subject: `Complaint Registered (${complaintId}) – SwachConnect`,
-    html: `
+    try {
+      await sendEmail({
+        to: complaint.reporterEmail,
+        subject: `Complaint Registered (${complaintId}) – SwachConnect`,
+        html: `
     <div style="font-family: Arial; padding:20px;">
       <h2 style="color:#2E7D32;">Complaint Registered ✅</h2>
       <p>Your complaint has been successfully submitted.</p>
@@ -150,31 +150,29 @@ try {
       <p><strong>Status:</strong> Pending</p>
       <hr/>
       <p><strong>Assigned Authority:</strong> ${complaint.assignedAuthority}</p>
-      <p><strong>Expected Resolution Time:</strong> ${
-        DEMO_MODE
-          ? "5 minutes"
-          : complaint.assignedAuthority === "Municipality / Panchayat"
-          ? "24 hours"
-          : "48 hours"
-      }</p>
+      <p><strong>Expected Resolution Time:</strong> ${DEMO_MODE
+            ? "5 minutes"
+            : complaint.assignedAuthority === "Municipality / Panchayat"
+              ? "24 hours"
+              : "48 hours"
+          }</p>
       <p style="color:#d32f2f;">
         ⚠ If not resolved within the time, your complaint will be automatically escalated to higher authorities.
       </p>
-      ${
-        images.length > 0
-          ? `<p><strong>Attached Image:</strong></p>
+      ${images.length > 0
+            ? `<p><strong>Attached Image:</strong></p>
              <img src="${process.env.BASE_URL}${images[0]}" width="200"/>`
-          : ""
-      }
+            : ""
+          }
       <hr/>
       <p>Thank you for using <strong>SwachConnect</strong>.</p>
     </div>
     `
-  });
-  console.log("📧 Email sent");
-} catch (emailError) {
-  console.log("⚠ Email failed but complaint saved:", emailError.message);
-}
+      });
+      console.log("📧 Email sent");
+    } catch (emailError) {
+      console.log("⚠ Email failed but complaint saved:", emailError.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -236,7 +234,10 @@ exports.getUserComplaints = async (req, res) => {
       userId: req.user._id
     }).sort({ createdAt: -1 });
 
-    res.json(complaints);
+    res.json({
+      success: true,
+      complaints
+    });
   } catch (err) {
     res.status(500).json({
       message: "Failed to fetch complaints"
@@ -254,7 +255,10 @@ exports.getAllComplaints = async (req, res) => {
       .populate("userId", "name email")
       .sort({ createdAt: -1 });
 
-    res.json(complaints);
+    res.json({
+      success: true,
+      complaint
+    });
   } catch (err) {
     res.status(500).json({
       message: "Failed to fetch complaints"
@@ -265,10 +269,7 @@ exports.getAllComplaints = async (req, res) => {
 
 exports.deleteComplaint = async (req, res) => {
   try {
-    const complaint = await Complaint.findOne({
-      _id: req.params.id,
-      userId: req.user._id
-    });
+    const complaint = await Complaint.findById(req.params.id);
 
     if (!complaint) {
       return res.status(404).json({
@@ -279,6 +280,7 @@ exports.deleteComplaint = async (req, res) => {
     await complaint.deleteOne();
 
     res.json({
+      success: true,
       message: "Complaint deleted successfully"
     });
 
@@ -309,7 +311,10 @@ exports.escalateComplaint = async (req, res) => {
 
     await complaint.save();
 
-    res.json(complaint);
+    res.json({
+      success: true,
+      complaint
+    });
 
   } catch (err) {
     res.status(500).json({

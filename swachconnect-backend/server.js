@@ -66,7 +66,7 @@ app.use("/uploads", express.static(uploadsPath));
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/auth", require("./routes/passwordRoutes"));
 app.use("/api/complaints", require("./routes/complaintRoutes"));
-
+app.use("/api/users", require("./routes/userRoutes"));
 /* --------------------------------------------------
    Root route
 ---------------------------------------------------*/
