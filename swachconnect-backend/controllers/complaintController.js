@@ -341,7 +341,7 @@ exports.emailEscalateComplaint = async (req, res) => {
     complaint.escalationLevel += 1;
     complaint.assignedAuthority =
       authorityLevels[complaint.escalationLevel];
-    complaint.status = "Escalated";
+    complaint.status = "escalated";
     complaint.deadline = getDeadlineByAuthority(complaint.assignedAuthority);
     complaint.emailActionToken = null;
     complaint.emailActionExpires = null;
