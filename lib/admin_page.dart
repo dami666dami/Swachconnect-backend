@@ -388,17 +388,28 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+
+    _checkAccess(); // 🔥 access control
+
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _fadeAnimation = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOut,
+    );
 
     _headerGlowController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
     )..repeat(reverse: true);
-    _headerGlowAnim = CurvedAnimation(parent: _headerGlowController, curve: Curves.easeInOut);
+
+    _headerGlowAnim = CurvedAnimation(
+      parent: _headerGlowController,
+      curve: Curves.easeInOut,
+    );
 
     fetchComplaints();
   }
@@ -428,7 +439,7 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         setState(() {
-          complaints = data["complaints"] ?? data;
+          complaints = data["complaints"] ?? data["data"] ?? data;
           loadingComplaints = false;
         });
         _fadeController.forward(from: 0);
@@ -438,6 +449,26 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
     } catch (e) {
       setState(() => loadingComplaints = false);
       _showSnack('Failed to load complaints', isError: true);
+    }
+  }
+
+  Future<void> _checkAccess() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final role = prefs.getString('user_role');
+    final realRole = prefs.getString('real_role');
+    if (realRole != 'admin') {
+      if (!mounted) return;
+
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/home',
+            (route) => false,
+      );
+      return;
+    }
+    if (role == null) {
+      await prefs.setString('user_role', 'admin');
     }
   }
 
@@ -554,23 +585,59 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
     );
     if (confirmed != true) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await prefs.remove(AppConfig.tokenKey);
+    await prefs.remove('user_role');
+    await prefs.remove('real_role');
     if (!mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
-  Future<void> _switchToUserMode() async {
+    Future<void> _switchToUserMode() async {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => _SwitchRoleDialog(toAdmin: false),
+      );
+
+      if (confirmed != true) return;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_role', 'user');
+      await Future.delayed(Duration(milliseconds: 200));
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/',
+            (route) => false,
+      );
+    }
+
+
+  Future<void> _switchToAdminMode() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => _SwitchRoleDialog(toAdmin: false),
+      builder: (_) => _SwitchRoleDialog(toAdmin: true),
     );
-    if (confirmed != true) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_PrefKeys.role, 'user');
-    if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
-  }
 
+    if (confirmed != true) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final realRole = prefs.getString('real_role');
+
+    if (realRole == 'admin') {
+      await prefs.setString('user_role', 'admin');
+      await Future.delayed(Duration(milliseconds: 200));
+    } else {
+      _showSnack("Access denied", isError: true);
+      return;
+    }
+
+    if (!mounted) return;
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      '/',
+          (route) => false,
+    );
+  }
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   void _showSnack(String msg, {bool isError = false}) {
@@ -699,11 +766,36 @@ class _AdminPageState extends State<AdminPage> with TickerProviderStateMixin {
               ),
               const SizedBox(width: 7),
               // Switch to User
-              _IconBtn(
-                icon: Icons.swap_horiz_rounded,
-                onTap: _switchToUserMode,
-                tooltip: 'Switch to User Mode',
-                iconColor: _Colors.warning,
+              FutureBuilder<String?>(
+                future: SharedPreferences.getInstance()
+                    .then((prefs) => prefs.getString('real_role')),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const SizedBox();
+
+                  final realRole = snapshot.data;
+
+                  // ❌ Hide button for normal users
+                  if (realRole != 'admin') {
+                    return const SizedBox();
+                  }
+
+                  // ✅ Show only for admin
+                  return _IconBtn(
+                    icon: Icons.swap_horiz_rounded,
+                    onTap: () async {
+                      final prefs = await SharedPreferences.getInstance();
+                      final currentRole = prefs.getString('user_role');
+
+                      if (currentRole == 'admin') {
+                        _switchToUserMode();
+                      } else {
+                        _switchToAdminMode();
+                      }
+                    },
+                    tooltip: 'Switch Mode',
+                    iconColor: _Colors.warning,
+                  );
+                },
               ),
               const SizedBox(width: 7),
               // Logout

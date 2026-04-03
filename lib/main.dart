@@ -424,11 +424,10 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  // ← MODIFIED: Role-based routing
   Future<void> _checkLogin() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(AppConfig.tokenKey);
-    final role  = prefs.getString("role") ?? "user"; // ← ADDED
+    final role = prefs.getString("user_role") ?? "user";
 
     if (!mounted) return;
 
@@ -436,7 +435,7 @@ class _SplashScreenState extends State<SplashScreen>
     if (token == null || token.isEmpty) {
       destination = const LoginPage();
     } else if (role == "admin") {
-      destination = const AdminPage(); // ← ADDED: admin auto-route
+      destination = const AdminPage();
     } else {
       destination = const HomePage();
     }
@@ -792,11 +791,10 @@ class _LoginPageState extends State<LoginPage> {
         }
         await prefs.setString(AppConfig.tokenKey, token);
         await prefs.setString(AppConfig.nameKey, body["user"]?["name"] ?? "User");
-
-        // ← ADDED: save role
-        await prefs.setString("role", body["user"]?["role"] ?? "user");
-
-        final role = body["user"]?["role"] ?? "user"; // ← ADDED
+        final role = body["user"]?["role"] ?? "user";
+        await prefs.setString("role", role);
+        await prefs.setString("user_role", role);
+        await prefs.setString("real_role", role);
 
         if (!mounted) return;
 
@@ -1279,7 +1277,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) setState(() {
       name = prefs.getString(AppConfig.nameKey) ?? "User";
-      role = prefs.getString("role") ?? "user"; // ← ADDED
+      role = prefs.getString("user_role") ?? "user";
     });
   }
 
@@ -1404,14 +1402,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               ),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14)),
-                              onSelected: (v) {
-                                if (v == "logout") { _logout(); }
-                                // ← ADDED: admin panel from menu
+                              onSelected: (v) async {
+                                if (v == "logout") {
+                                  _logout();
+                                }
                                 if (v == "admin") {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const AdminPage()),
-                                  );
+                                  final prefs = await SharedPreferences.getInstance();
+                                  final realRole = prefs.getString("real_role");
+
+                                  if (realRole == "admin") {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const AdminPage()),
+                                    );
+                                  } else {
+                                    _showSnack(context, "Access Denied", isError: true);
+                                  }
                                 }
                               },
                               itemBuilder: (_) => [
