@@ -121,7 +121,7 @@ exports.createComplaint = async (req, res) => {
       images,
       location: { lat: latitude, lng: longitude },
       isAnonymous: anonymous,
-      status: "Pending",
+      status: "pending",
       progress: 10,
       assignedAuthority: authorityLevels[0],
       escalationLevel: 0,
@@ -257,7 +257,7 @@ exports.getAllComplaints = async (req, res) => {
 
     res.json({
       success: true,
-      complaint
+      complaints
     });
   } catch (err) {
     res.status(500).json({
@@ -306,7 +306,7 @@ exports.escalateComplaint = async (req, res) => {
     complaint.escalationLevel += 1;
     complaint.assignedAuthority =
       authorityLevels[complaint.escalationLevel];
-    complaint.status = "Escalated";
+    complaint.status = "escalated";
     complaint.deadline = getDeadlineByAuthority(complaint.assignedAuthority);
 
     await complaint.save();
@@ -400,7 +400,7 @@ exports.emailWaitComplaint = async (req, res) => {
       return res.send("<h2>Invalid request</h2>");
     }
 
-    complaint.status = "In Progress";
+    complaint.status = "in_progress";
     complaint.emailActionToken = null;
     complaint.emailActionExpires = null;
 
@@ -448,7 +448,7 @@ exports.submitFeedback = async (req, res) => {
       });
     }
 
-    if (complaint.status !== "Resolved") {
+    if (complaint.status !== "resolved") {
       return res.status(400).json({
         success: false,
         message: "Feedback allowed only after resolution",
